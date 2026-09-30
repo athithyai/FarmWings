@@ -216,6 +216,9 @@ table.mini tr.best td { color: var(--accent); }
   .project { padding-left: 0; border-left: 0; }
   .lifecycle { margin-left: 0; width: 100%; overflow-x: auto; flex-wrap: nowrap; }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi:nth-child(n + 5) { display: none; } /* keep the map near the top on phones */
+  .kpi { padding: 6px 12px; }
+  .kpi .value { font-size: 18px; }
   .workspace { display: flex; flex-direction: column; }
   .map-wrap { height: 68vh; min-height: 380px; order: 1; }
   .layers { order: 2; border-right: 0; border-top: 1px solid var(--border); padding: 12px 16px; }

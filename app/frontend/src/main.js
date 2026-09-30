@@ -192,9 +192,13 @@ function addLayers() {
     paint: { "circle-color": matchColor("plant_class", ID_CLASSES), "circle-radius": radius, "circle-opacity": 0.95 } });
   // 3 - health (fills)
   map.addLayer({ id: "health-fill", type: "fill", source: "plants", minzoom: POLY_MINZOOM,
-    paint: { "fill-color": matchColor("health_class", HEALTH_CLASSES), "fill-opacity": 0.7 } });
+    paint: { "fill-color": matchColor("health_class", HEALTH_CLASSES), "fill-opacity": 0.8 } });
   map.addLayer({ id: "health-pt", type: "circle", source: "points", maxzoom: POLY_MINZOOM,
     paint: { "circle-color": matchColor("health_class", HEALTH_CLASSES), "circle-radius": radius, "circle-opacity": 0.95 } });
+  // thin dark outline so the neutral / light classes stay readable on bright sand
+  const outline = { "line-color": "#0b0c0e", "line-opacity": 0.75, "line-width": ["interpolate", ["linear"], ["zoom"], 19, 0.6, 23, 1.4] };
+  map.addLayer({ id: "ident-outline", type: "line", source: "plants", minzoom: POLY_MINZOOM, paint: outline });
+  map.addLayer({ id: "health-outline", type: "line", source: "plants", minzoom: POLY_MINZOOM, paint: outline });
 
   // 1 - detection (outlines / points)
   map.addLayer({ id: "detected-line", type: "line", source: "plants", minzoom: POLY_MINZOOM, filter: planted,
@@ -281,14 +285,14 @@ function applyLayerVisibility() {
   vis(["lines"], L.lines);
   vis(["detected-line", "detected-pt"], L.detected);
   vis(["between-line", "between-pt"], L.between);
-  vis(["ident-fill", "ident-pt"], L.ident);
-  vis(["health-fill", "health-pt"], L.health);
+  vis(["ident-fill", "ident-pt", "ident-outline"], L.ident);
+  vis(["health-fill", "health-pt", "health-outline"], L.health);
   vis(["unclassified-line", "unclassified-pt"], L.unclassified);
   vis(["lowhealth-line", "lowhealth-pt"], L.lowhealth);
   // Identification / health / extra layers cover between-line vegetation only when it is switched on
   const scope = L.between ? null : ["==", ["get", "position_type"], "Planting line"];
   const withScope = (f) => (scope ? (f ? ["all", scope, f] : scope) : f ?? null);
-  for (const id of ["ident-fill", "ident-pt", "health-fill", "health-pt"]) map.setFilter(id, withScope(null));
+  for (const id of ["ident-fill", "ident-pt", "ident-outline", "health-fill", "health-pt", "health-outline"]) map.setFilter(id, withScope(null));
   for (const id of ["unclassified-line", "unclassified-pt"]) map.setFilter(id, withScope(["==", ["get", "plant_class"], "Unclassified"]));
   for (const id of ["lowhealth-line", "lowhealth-pt"]) map.setFilter(id, withScope(["in", ["get", "health_class"], ["literal", LOW]]));
 }
