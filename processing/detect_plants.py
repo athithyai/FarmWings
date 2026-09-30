@@ -4,18 +4,23 @@ Pipeline (aligned 2.36 cm grid, RGB + co-registered NDVI):
   1. plant-ness surface = robust z of RGB darkness (drip lines removed by grey closing)
      + robust z of NDVI anomaly, both relative to the local soil background (sigma ~0.95 m)
   2. candidates = local maxima (one per 0.73 m window, z > 3)
-  3. planting-line context from detect_lines.py: |distance| <= 0.24 m -> planted position;
-     off-line candidates are kept only with a real vegetation signal (NDVI anomaly z >= 4)
+  3. planting-line context from detect_lines.py: candidates within 0.24 m of a line are
+     segmented; off-line candidates only with a vegetation signal (NDVI anomaly z >= 4)
   4. SAM 2.1 (hiera-large) point + box prompt per candidate on 1024 px tiles -> mask
   5. mask trimmed to the plant/pit core (fine plant-ness > 2.5 inside the SAM mask; if no core
      survives the SAM mask is kept and core_found=false), shape filter (area 0.02-1.4 m2,
      solidity >= 0.7, elongation <= 3), overlap suppression
-  6. polygonise, attach geometry / line / confidence attributes
+  6. polygonise (-> plants_raw.geojson), then finalize(): planted position = polygon centroid
+     within 0.31 m of a line AND the drip line locally visible (score >= 5, see
+     detect_lines.LineModel.visibility); other objects are 'Between lines' and kept only with
+     NDVI anomaly z >= 4. Run `python processing/detect_plants.py --positions-only` to redo
+     just this step from plants_raw.geojson.
 
 detection_confidence is a heuristic score in [0, 1]: geometric mean of SAM's predicted mask
 IoU and the candidate strength 1 - exp(-(z - 3) / 2.5). It is NOT a calibrated probability.
 
-Outputs (processing_outputs/detection/): plants.geojson, detection_summary.json, detection_preview.png
+Outputs (processing_outputs/detection/): plants_raw.geojson, plants.geojson, detection_summary.json,
+detection_preview.png
 """
 from __future__ import annotations
 
@@ -37,6 +42,8 @@ MIN_SOLIDITY, MAX_ELONGATION = 0.70, 3.0
 ON_LINE_PX = 10        # px (~0.24 m) - candidate counts as on a planting line
 OFFLINE_MIN_ZN = 4.0   # off-line candidates need this NDVI-anomaly z to be kept
 TILE, TILE_STEP = 1024, 896
+CENTROID_LINE_PX = 13  # px (~0.31 m) - final polygon centroid distance to a planting line
+from detect_lines import VIS_MIN as LINE_VISIBILITY_MIN  # noqa: E402 local drip-line visibility threshold
 FINE_SIGMA = 1.5       # px - smoothing of the pixel-level plant-ness used to trim SAM masks
 CORE_Z = 2.5           # fine plant-ness threshold for the plant/pit core inside a SAM mask
 
@@ -285,7 +292,48 @@ def main() -> dict:
             "detection_confidence": round(detection_confidence(o["sam_iou"], float(z)), 3),
             "geometry": g,
         })
-    gdf = gpd.GeoDataFrame(rows, geometry="geometry", crs=crs)
+    raw = gpd.GeoDataFrame(rows, geometry="geometry", crs=crs).drop(columns=["line_idx", "along_px"])
+    raw.to_file(out / "plants_raw.geojson", driver="GeoJSON")
+    return finalize(raw, {"n_candidates": int(len(pts)), "n_candidates_on_line": int(on_line.sum()),
+                          "n_candidates_kept": int(len(cand))})
+
+
+def finalize(raw, cand_stats: dict) -> dict:
+    """Assign each segmented object to a planting line or 'between lines', then IDs.
+
+    Planted position = polygon centroid within CENTROID_LINE_PX of a tracked line AND a
+    visible drip line locally (detect_lines.LineModel.visibility >= LINE_VISIBILITY_MIN).
+    Rows of pits / vegetation where no drip line is visible are therefore not planting
+    lines. Between-line objects are kept only with a vegetation signal (NDVI anomaly z >= 4).
+    """
+    import geopandas as gpd  # noqa: F401
+    import rasterio
+    from detect_lines import LineModel
+
+    out = out_dir("detection")
+    with rasterio.open(OUT / "aligned" / "ndvi_coreg.tif") as d:
+        transform = d.transform
+    lines = LineModel.load(OUT / "lines" / "lines_model.npz")
+    R = np.load(OUT / "lines" / "line_evidence_rot.npy").astype(np.float32)
+    cen = raw.geometry.centroid
+    r, c = rasterio.transform.rowcol(transform, cen.x.values, cen.y.values)
+    r, c = np.asarray(r, float), np.asarray(c, float)
+    li, dist, along = lines.nearest(r, c)
+    radius_px = np.sqrt(raw.area.values / np.pi) / PIXEL_M
+    vis = lines.visibility(r, c, radius_px, R)
+    del R
+    on = (np.abs(dist) <= CENTROID_LINE_PX) & (np.nan_to_num(vis, nan=-1) >= LINE_VISIBILITY_MIN)
+    keep = on | (raw.ndvi_anomaly_z.values >= OFFLINE_MIN_ZN)
+
+    gdf = raw.copy()
+    gdf["line_idx"], gdf["along_px"] = li, along
+    gdf["line_id"] = [f"L{int(i) + 1:03d}" if i >= 0 else None for i in li]
+    gdf["dist_to_line_m"] = np.round(dist * PIXEL_M, 3)
+    gdf["drip_line_visibility"] = np.round(vis, 2)
+    gdf["on_planting_line"] = on
+    gdf["position_type"] = np.where(on, "Planting line", "Between lines")
+    n_dropped = int((~keep).sum())
+    gdf = gdf[keep]
     gdf = gdf.sort_values(["on_planting_line", "line_idx", "along_px"], ascending=[False, True, True]).reset_index(drop=True)
     gdf.insert(0, "plant_id", [f"P{i + 1:05d}" for i in range(len(gdf))])
     cen = gdf.geometry.centroid
@@ -295,19 +343,20 @@ def main() -> dict:
     gdf["detection_model"] = DETECTION_MODEL
     gdf["detection_model_version"] = DETECTION_VERSION
     gdf["processing_date"] = PROCESSING_DATE
-    gdf = gdf.drop(columns=["line_idx"])
+    gdf = gdf.drop(columns=["line_idx", "along_px"])
     gdf.to_file(out / "plants.geojson", driver="GeoJSON")
 
     summary = {
-        "n_candidates": int(len(pts)), "n_candidates_on_line": int(on_line.sum()),
-        "n_candidates_kept": int(len(cand)), "n_plants": int(len(gdf)),
+        **cand_stats, "n_segmented": int(len(raw)), "n_plants": int(len(gdf)),
         "n_on_planting_line": int(gdf.on_planting_line.sum()),
         "n_between_lines": int((~gdf.on_planting_line).sum()),
+        "n_dropped_no_line_no_vegetation": n_dropped,
         "area_m2_median": float(gdf.area_m2.median()), "area_m2_p90": float(gdf.area_m2.quantile(0.9)),
         "detection_confidence_median": float(gdf.detection_confidence.median()),
         "core_found_fraction": float(gdf.core_found.mean()),
         "parameters": {"PEAK_Z": PEAK_Z, "PEAK_WINDOW_px": PEAK_WINDOW, "BG_SIGMA_px": BG_SIGMA,
                        "ON_LINE_PX": ON_LINE_PX, "OFFLINE_MIN_ZN": OFFLINE_MIN_ZN,
+                       "CENTROID_LINE_PX": CENTROID_LINE_PX, "LINE_VISIBILITY_MIN": LINE_VISIBILITY_MIN,
                        "area_px": [MIN_AREA_PX, MAX_AREA_PX], "min_solidity": MIN_SOLIDITY,
                        "max_elongation": MAX_ELONGATION, "sam_box_half_px": BOX_HALF},
         "model": DETECTION_MODEL, "version": DETECTION_VERSION,
@@ -342,4 +391,12 @@ def preview(gdf, path, window=(4245, 2448, 1024)):
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--positions-only" in sys.argv:
+        import geopandas as gpd
+        from common import read_json
+        prev = read_json(OUT / "detection" / "detection_summary.json")
+        finalize(gpd.read_file(OUT / "detection" / "plants_raw.geojson"),
+                 {k: prev[k] for k in ("n_candidates", "n_candidates_on_line", "n_candidates_kept") if k in prev})
+    else:
+        main()

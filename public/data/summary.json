@@ -23,7 +23,7 @@
     {
       "step": "Plant detection",
       "status": "done",
-      "detail": "5,770 planted positions + 984 between-line vegetation"
+      "detail": "5,708 planted positions + 946 between-line vegetation"
     },
     {
       "step": "Identification",
@@ -42,33 +42,33 @@
     }
   ],
   "stats": {
-    "planted_positions": 5770,
-    "between_line_vegetation": 984,
-    "all_detections": 6754,
-    "identified": 6617,
-    "identification_rate": 0.9797157240153983,
+    "planted_positions": 5708,
+    "between_line_vegetation": 946,
+    "all_detections": 6654,
+    "identified": 6543,
+    "identification_rate": 0.9833183047790802,
     "class_counts": {
-      "Palm (planted)": 5402,
-      "Other vegetation": 1215,
-      "Unclassified": 137
+      "Palm (planted)": 5458,
+      "Other vegetation": 1085,
+      "Unclassified": 111
     },
-    "palms_identified": 5402,
+    "palms_identified": 5458,
     "health_counts_planted": {
-      "Moderate vigour": 2022,
-      "Low vigour": 1471,
-      "High vigour": 1390,
+      "Moderate vigour": 2021,
+      "Low vigour": 1439,
+      "High vigour": 1367,
       "Very high vigour": 621,
-      "Very low vigour": 266
+      "Very low vigour": 260
     },
-    "high_vigour_planted": 2011,
-    "low_vigour_planted": 1737,
-    "high_vigour_share_planted": 0.34852686308492203,
-    "avg_health_score_planted": 0.5234793760831888,
-    "avg_mean_ndvi_planted": 0.2524286828422877,
-    "field_soil_ndvi_median": 0.09923648461699486,
+    "high_vigour_planted": 1988,
+    "low_vigour_planted": 1699,
+    "high_vigour_share_planted": 0.3482831114225648,
+    "avg_health_score_planted": 0.524894358794674,
+    "avg_mean_ndvi_planted": 0.2540045199719692,
+    "field_soil_ndvi_median": 0.09916146472096443,
     "planting_lines": 112,
     "line_spacing_m": 1.9981333333333404,
-    "planted_density_per_ha": 2166.861513326214,
+    "planted_density_per_ha": 2143.578079387527,
     "surveyed_area_ha": 2.6628374561615766
   },
   "models": {
@@ -95,74 +95,74 @@
       "spatial_cv": {
         "folds": 5,
         "block_m": 25.0,
-        "roc_auc": 0.9892038544968865,
-        "balanced_accuracy": 0.9646574161291506
+        "roc_auc": 0.9928750620569096,
+        "balanced_accuracy": 0.9799139890202087
       },
       "weak_labels": {
-        "planted": 5101,
-        "other": 984,
-        "unlabelled": 669
+        "planted": 5123,
+        "other": 946,
+        "unlabelled": 585
       },
       "experimental": true,
       "trial": {
-        "n_labelled": 6085,
-        "n_planted": 5101,
-        "n_other": 984,
+        "n_labelled": 6069,
+        "n_planted": 5123,
+        "n_other": 946,
         "ndvi_rgb_geometry_only": {
-          "roc_auc": 0.9722,
-          "balanced_accuracy": 0.9332
+          "roc_auc": 0.9809,
+          "balanced_accuracy": 0.943
         },
         "dinov2-base_only": {
-          "roc_auc": 0.9862,
-          "balanced_accuracy": 0.9494
+          "roc_auc": 0.9946,
+          "balanced_accuracy": 0.9743
         },
         "dinov2-base+tabular": {
-          "roc_auc": 0.987,
-          "balanced_accuracy": 0.9551
+          "roc_auc": 0.9952,
+          "balanced_accuracy": 0.9746
         },
         "dinov3-vitl16-sat493m_only": {
-          "roc_auc": 0.9819,
-          "balanced_accuracy": 0.9402
+          "roc_auc": 0.989,
+          "balanced_accuracy": 0.9644
         },
         "dinov3-vitl16-sat493m+tabular": {
-          "roc_auc": 0.9835,
-          "balanced_accuracy": 0.9457
+          "roc_auc": 0.9897,
+          "balanced_accuracy": 0.9673
         },
         "clip-vit-l14_only": {
-          "roc_auc": 0.9859,
-          "balanced_accuracy": 0.9572
+          "roc_auc": 0.9932,
+          "balanced_accuracy": 0.9754
         },
         "clip-vit-l14+tabular": {
-          "roc_auc": 0.9874,
-          "balanced_accuracy": 0.9576
+          "roc_auc": 0.9935,
+          "balanced_accuracy": 0.9732
         },
         "dinov2-base_crown_only": {
-          "roc_auc": 0.9842,
-          "balanced_accuracy": 0.9602
+          "roc_auc": 0.9914,
+          "balanced_accuracy": 0.9743
         },
         "dinov2-base_crown+tabular": {
-          "roc_auc": 0.9847,
-          "balanced_accuracy": 0.9601
+          "roc_auc": 0.9917,
+          "balanced_accuracy": 0.9742
         },
         "dinov3-vitl16-sat493m_crown_only": {
-          "roc_auc": 0.989,
-          "balanced_accuracy": 0.9637
+          "roc_auc": 0.9929,
+          "balanced_accuracy": 0.9794
         },
         "dinov3-vitl16-sat493m_crown+tabular": {
-          "roc_auc": 0.9892,
-          "balanced_accuracy": 0.9647
+          "roc_auc": 0.9929,
+          "balanced_accuracy": 0.9799
         },
         "clip-vit-l14_crown_only": {
-          "roc_auc": 0.9846,
-          "balanced_accuracy": 0.9564
+          "roc_auc": 0.9903,
+          "balanced_accuracy": 0.9692
         },
         "clip-vit-l14_crown+tabular": {
-          "roc_auc": 0.9852,
-          "balanced_accuracy": 0.9579
+          "roc_auc": 0.9906,
+          "balanced_accuracy": 0.9697
         },
         "clip_zero_shot": {
-          "roc_auc": 0.7669,
-          "balanced_accuracy": 0.5648
+          "roc_auc": 0.7701,
+          "balanced_accuracy": 0.5644
         }
       }
     },
@@ -183,9 +183,9 @@
         "High vigour": 0.5,
         "Moderate vigour": -0.5,
         "Low vigour": -1.5,
-        "Very low vigour": -Infinity
+        "Very low vigour": null
       },
-      "consistency_spearman_ndvi_vs_rgb": 0.7637733530218411,
+      "consistency_spearman_ndvi_vs_rgb": 0.7633427123556733,
       "experimental": true,
       "disclaimer": "Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a laboratory disease diagnosis."
     }

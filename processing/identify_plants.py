@@ -59,6 +59,10 @@ def load_crops(gdf, input_dir):
     ids = cache_dir() / "crops_ids.npy"
     if path.exists() and ids.exists() and list(np.load(ids, allow_pickle=True)) == list(gdf.plant_id):
         return np.load(path)
+    # Plant set changed: every derived cache (crown crops, embeddings, tabular) is stale
+    for stale in list(cache_dir().glob("emb_*.npy")) + list(cache_dir().glob("crown_crops_*.npy")) + \
+            list(cache_dir().glob("ident_tabular.*")):
+        stale.unlink()
     rgb_path, _ = find_inputs(input_dir)
     crops = extract_crops(gdf, rgb_path)
     np.save(path, crops)

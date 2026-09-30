@@ -8,26 +8,26 @@
     "Unclassified"
   ],
   "min_confidence": 0.7,
-  "n_plants": 6754,
+  "n_plants": 6654,
   "class_counts": {
-    "Other vegetation": 1215,
-    "Palm (planted)": 5402,
-    "Unclassified": 137
+    "Other vegetation": 1085,
+    "Palm (planted)": 5458,
+    "Unclassified": 111
   },
-  "identified_fraction": 0.9797157240153983,
+  "identified_fraction": 0.9833183047790802,
   "weak_labels": {
-    "planted": 5101,
-    "other": 984,
-    "unlabelled": 669
+    "planted": 5123,
+    "other": 946,
+    "unlabelled": 585
   },
   "spatial_cv": {
     "folds": 5,
     "block_m": 25.0,
-    "roc_auc": 0.9892038544968865,
-    "balanced_accuracy": 0.9646574161291506
+    "roc_auc": 0.9928750620569096,
+    "balanced_accuracy": 0.9799139890202087
   },
   "label_agreement_on_unlabelled": {
-    "on_line_unlabelled_predicted_palm": 0.5620328849028401
+    "on_line_unlabelled_predicted_palm": 0.6803418803418804
   },
   "processing_date": "2026-09-30"
 }

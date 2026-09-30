@@ -1,61 +1,61 @@
 {
-  "n_labelled": 6085,
-  "n_planted": 5101,
-  "n_other": 984,
+  "n_labelled": 6069,
+  "n_planted": 5123,
+  "n_other": 946,
   "ndvi_rgb_geometry_only": {
-    "roc_auc": 0.9722,
-    "balanced_accuracy": 0.9332
+    "roc_auc": 0.9809,
+    "balanced_accuracy": 0.943
   },
   "dinov2-base_only": {
-    "roc_auc": 0.9862,
-    "balanced_accuracy": 0.9494
+    "roc_auc": 0.9946,
+    "balanced_accuracy": 0.9743
   },
   "dinov2-base+tabular": {
-    "roc_auc": 0.987,
-    "balanced_accuracy": 0.9551
+    "roc_auc": 0.9952,
+    "balanced_accuracy": 0.9746
   },
   "dinov3-vitl16-sat493m_only": {
-    "roc_auc": 0.9819,
-    "balanced_accuracy": 0.9402
+    "roc_auc": 0.989,
+    "balanced_accuracy": 0.9644
   },
   "dinov3-vitl16-sat493m+tabular": {
-    "roc_auc": 0.9835,
-    "balanced_accuracy": 0.9457
+    "roc_auc": 0.9897,
+    "balanced_accuracy": 0.9673
   },
   "clip-vit-l14_only": {
-    "roc_auc": 0.9859,
-    "balanced_accuracy": 0.9572
+    "roc_auc": 0.9932,
+    "balanced_accuracy": 0.9754
   },
   "clip-vit-l14+tabular": {
-    "roc_auc": 0.9874,
-    "balanced_accuracy": 0.9576
+    "roc_auc": 0.9935,
+    "balanced_accuracy": 0.9732
   },
   "dinov2-base_crown_only": {
-    "roc_auc": 0.9842,
-    "balanced_accuracy": 0.9602
+    "roc_auc": 0.9914,
+    "balanced_accuracy": 0.9743
   },
   "dinov2-base_crown+tabular": {
-    "roc_auc": 0.9847,
-    "balanced_accuracy": 0.9601
+    "roc_auc": 0.9917,
+    "balanced_accuracy": 0.9742
   },
   "dinov3-vitl16-sat493m_crown_only": {
-    "roc_auc": 0.989,
-    "balanced_accuracy": 0.9637
+    "roc_auc": 0.9929,
+    "balanced_accuracy": 0.9794
   },
   "dinov3-vitl16-sat493m_crown+tabular": {
-    "roc_auc": 0.9892,
-    "balanced_accuracy": 0.9647
+    "roc_auc": 0.9929,
+    "balanced_accuracy": 0.9799
   },
   "clip-vit-l14_crown_only": {
-    "roc_auc": 0.9846,
-    "balanced_accuracy": 0.9564
+    "roc_auc": 0.9903,
+    "balanced_accuracy": 0.9692
   },
   "clip-vit-l14_crown+tabular": {
-    "roc_auc": 0.9852,
-    "balanced_accuracy": 0.9579
+    "roc_auc": 0.9906,
+    "balanced_accuracy": 0.9697
   },
   "clip_zero_shot": {
-    "roc_auc": 0.7669,
-    "balanced_accuracy": 0.5648
+    "roc_auc": 0.7701,
+    "balanced_accuracy": 0.5644
   }
 }

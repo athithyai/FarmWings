@@ -128,7 +128,7 @@ def main() -> dict:
     corr = Z.corr(method="spearman").round(3)
     summary = {
         "model": HEALTH_MODEL, "version": HEALTH_VERSION, "approach": "B - relative multimodal (no suitable pretrained model)",
-        "weights": WEIGHTS, "class_bands_z": {name: thr for thr, name in CLASSES},
+        "weights": WEIGHTS, "class_bands_z": {name: (thr if np.isfinite(thr) else None) for thr, name in CLASSES},
         "n_plants": int(len(res)),
         "class_counts": {str(k): int(v) for k, v in res.health_class.value_counts().items()},
         "no_green_signal": int(res.no_green_signal.sum()),

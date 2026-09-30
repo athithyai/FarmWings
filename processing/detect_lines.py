@@ -1,6 +1,7 @@
 """Stage 2a - detect the drip-irrigation planting lines.
 
-The planted seedlings sit in pits along thin dark drip lines (~2 m apart). These lines are
+The planted seedlings sit in pits along thin dark drip lines. Only the visible drip lines
+are planting lines (rows of pits / vegetation without a drip line are not). They are
 the planting reference: a detection on a line is at a planted position, a detection
 between lines is spontaneous vegetation or a soil feature.
 
@@ -13,7 +14,8 @@ Method
      short tracks lying < 60 px from a long line (spurious in-between peaks);
      interpolate each track x'(y') for distance queries
 
-Outputs (processing_outputs/lines/): planting_lines.geojson, lines_model.npz, lines_summary.json
+Outputs (processing_outputs/lines/): planting_lines.geojson, lines_model.npz, lines_summary.json,
+         line_evidence_rot.npy (top-hat in the line frame, used for per-plant line visibility)
 """
 from __future__ import annotations
 
@@ -31,6 +33,9 @@ BLOCK, BLOCK_STEP = 400, 200
 MIN_PEAK_SEP = 50          # px (1.2 m) - lines are ~85 px apart
 LINK_TOL = 20              # px
 MIN_TRACK_BLOCKS = 3
+VIS_REACH_PX = 80          # px (1.9 m) - how far along the line to look for local evidence
+VIS_HALF_PX = 6            # px - half width of the line / soil windows (lines curve slightly)
+VIS_MIN = 5.0              # visibility score above which a drip line counts as visible
 
 
 def tophat(rgb: np.ndarray, valid: np.ndarray) -> np.ndarray:
@@ -86,6 +91,34 @@ class LineModel:
             best_d[upd], best_i[upd] = d[upd], i
         return best_i, best_d, yr
 
+    def visibility(self, rows, cols, radius_px, R, reach=VIS_REACH_PX, half=VIS_HALF_PX):
+        """Local drip-line evidence at each point.
+
+        Along the nearest tracked line, within +/- reach px but outside the plant's own crown,
+        take per row the max top-hat response in a (2*half+1) px window on the line, and the
+        same statistic in equally wide soil windows either side (offset 2*half+4 px). Score =
+        median(line row-max) - median(soil row-max). A continuous drip line gives a consistent
+        row maximum; soil specks do not. R is the top-hat image in the rotated frame."""
+        idx, _, yr = self.nearest(rows, cols)
+        H, W = R.shape
+        out = np.full(len(yr), np.nan)
+        for k, (i, y) in enumerate(zip(idx, yr)):
+            if i < 0:
+                continue
+            ys_t, xs_t = self.tracks[i]
+            xl = int(round(np.interp(y, ys_t, xs_t)))
+            yy = np.arange(int(y) - reach, int(y) + reach + 1)
+            yy = yy[(np.abs(yy - y) > radius_px[k] + 8) & (yy >= 0) & (yy < H)]
+            off = 2 * half + 4
+            if len(yy) < 20 or xl - off - half < 0 or xl + off + half + 1 >= W:
+                continue
+            strip = R[yy]
+            line = strip[:, xl - half:xl + half + 1].max(1)
+            left = strip[:, xl - off - half:xl - off + half + 1].max(1)
+            right = strip[:, xl + off - half:xl + off + half + 1].max(1)
+            out[k] = float(np.median(line) - np.median(np.r_[left, right]))
+        return out
+
     def save(self, path):
         np.savez(path, M=self.M, n=len(self.tracks),
                  **{f"ys{i}": t[0] for i, t in enumerate(self.tracks)},
@@ -97,7 +130,8 @@ class LineModel:
         return cls(z["M"], [(z[f"ys{i}"], z[f"xs{i}"]) for i in range(int(z["n"]))])
 
 
-def fit_lines(T: np.ndarray, valid: np.ndarray, angle: float) -> LineModel:
+def fit_lines(T: np.ndarray, valid: np.ndarray, angle: float):
+    """Returns (LineModel, R) where R is the opened top-hat in the rotated frame."""
     H, W = T.shape
     c, s = abs(np.cos(np.radians(angle))), abs(np.sin(np.radians(angle)))
     Wr, Hr = int(W * c + H * s) + 2, int(W * s + H * c) + 2
@@ -154,7 +188,7 @@ def fit_lines(T: np.ndarray, valid: np.ndarray, angle: float) -> LineModel:
         if not near or min(near) > 60:
             keep.append((ys, xs))
     keep.sort(key=lambda t: np.median(t[1]))
-    return LineModel(M, keep)
+    return LineModel(M, keep), R
 
 
 def main() -> dict:
@@ -166,18 +200,32 @@ def main() -> dict:
     T = tophat(rgb, valid)
     del rgb
     angle = dominant_angle(T)
-    model = fit_lines(T, valid, angle)
+    model, R = fit_lines(T, valid, angle)
     model.save(out / "lines_model.npz")
+    np.save(out / "line_evidence_rot.npy", R.astype(np.float16))
 
+    # Export only the stretches where the drip line is actually visible (sampled every
+    # 20 px = 0.47 m with the same local visibility test used for plants)
     geoms, attrs = [], []
     for i, (ys, xs) in enumerate(model.tracks):
-        rows, cols = model.to_pix(ys, xs)
-        x, y = rasterio.transform.xy(transform, rows, cols, offset="center")
-        geoms.append(LineString(np.c_[x, y]))
-        attrs.append({"line_id": f"L{i + 1:03d}", "length_m": 0.0, "n_blocks": int(len(ys))})
+        yy = np.arange(ys[0], ys[-1] + 1, 20.0)
+        xx = np.interp(yy, ys, xs)
+        rows, cols = model.to_pix(yy, xx)
+        vis = model.visibility(rows, cols, np.full(len(yy), -9.0), R, reach=40)
+        ok = np.nan_to_num(vis, nan=-1) >= VIS_MIN
+        run_start = None
+        for k in range(len(yy) + 1):
+            if k < len(yy) and ok[k]:
+                run_start = k if run_start is None else run_start
+                continue
+            if run_start is not None and k - run_start >= 3:
+                x, y = rasterio.transform.xy(transform, rows[run_start:k], cols[run_start:k], offset="center")
+                geoms.append(LineString(np.c_[x, y]))
+                attrs.append({"line_id": f"L{i + 1:03d}"})
+            run_start = None
     gdf = gpd.GeoDataFrame(attrs, geometry=geoms, crs=crs)
     gdf["length_m"] = gdf.length.round(2)
-    gdf["source"] = "drip-line detection (black top-hat + rotated column profiles)"
+    gdf["source"] = "drip-line detection (black top-hat + rotated column profiles), visible stretches only"
     gdf["processing_date"] = PROCESSING_DATE
     gdf.to_file(out / "planting_lines.geojson", driver="GeoJSON")
 
@@ -192,7 +240,7 @@ def main() -> dict:
     summary = {
         "angle_deg_rotation_to_vertical": angle,
         "n_lines": len(model.tracks),
-        "total_length_m": float(gdf.length.sum()),
+        "total_length_m_visible": float(gdf.length.sum()),
         "median_line_spacing_m": float(np.median(gaps[(gaps > 40) & (gaps < 140)]) * 0.0236) if len(gaps) else None,
         "method": __doc__.split("Method")[1].split("Outputs")[0].strip(),
     }
