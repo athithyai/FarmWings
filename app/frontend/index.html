@@ -4,30 +4,37 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FarmWings</title>
-    <meta name="description" content="FarmWings - Drone Mapping & Plant Intelligence. Plant-level detection, identification and health from drone RGB + NDVI." />
+    <meta name="description" content="FarmWings from SpatialWings: drone mapping and plant intelligence. Plant-level detection, identification and health from drone RGB + NDVI." />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111513'/%3E%3Cpath d='M16 27c0-8 3-13 10-16-7 0-10 3-10 8 0-5-3-8-10-8 7 3 10 8 10 16z' fill='%238fd46b'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
-  <body>
+  <body data-mode="public">
     <header class="appbar">
-      <a class="brand" href="#/" aria-label="FarmWings home">
+      <a class="brand" href="#/" aria-label="FarmWings from SpatialWings, home">
         <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27c0-8 3-13 10-16-7 0-10 3-10 8 0-5-3-8-10-8 7 3 10 8 10 16z" /></svg>
-        <span class="brand-name">Farm<b>Wings</b></span>
+        <span class="brand-text"><span class="brand-name">Farm<b>Wings</b></span><span class="brand-from">from SpatialWings</span></span>
       </a>
+      <nav class="pub-nav" aria-label="Page sections">
+        <button data-scroll="how">How it works</button>
+        <button data-scroll="models">Models</button>
+        <button data-scroll="product">Product</button>
+        <button data-scroll="results">Pilot results</button>
+      </nav>
+      <div class="crumb">
+        <a href="#/projects">Projects</a><span aria-hidden="true">/</span>
+        <select id="survey-select" aria-label="Project survey"></select>
+      </div>
       <nav class="nav" aria-label="Screens">
-        <a href="#/" data-route="overview">Overview</a>
+        <a href="#/overview" data-route="overview">Overview</a>
         <a href="#/map" data-route="map">Map</a>
         <a href="#/plants" data-route="plants">Plants</a>
         <a href="#/insights" data-route="insights">Insights</a>
         <a href="#/method" data-route="method">Methodology</a>
         <a href="#/analyze" data-route="analyze" class="nav-cta">Analyze survey</a>
       </nav>
-      <label class="survey-switch">
-        <span class="lbl">Survey</span>
-        <select id="survey-select" aria-label="Survey"></select>
-      </label>
+      <div class="user-box" id="user-box"></div>
     </header>
 
     <main id="screen" tabindex="-1"></main>

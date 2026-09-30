@@ -21,23 +21,6 @@ const STAGE_LABELS = [
   ["identify", "Identify plants"], ["health", "Assess health"], ["export", "Build results"], ["tiles", "Map imagery"], ["media", "Plant images"],
 ];
 
-export const COSTS = [
-  { part: "Web app", what: "Static FarmWings app (this site)", option: "GitHub Pages", size: "~60 MB per survey", cost: "Free" },
-  { part: "Storage", what: "RGB + NDVI GeoTIFFs and results", option: "Amazon S3 Standard · Azure Blob Hot", size: "~1.5 GB per 2.7 ha block", cost: "$0.02–0.03 per GB-month → ~$0.04 per block per month" },
-  { part: "GPU compute", what: "Full pipeline: SAM 2.1, DINOv3, health model", option: "AWS g6.xlarge (NVIDIA L4, 24 GB)", size: "~30 min per 2.7 ha block", cost: "$0.81 / h on demand → ~$0.40 per block" },
-  { part: "GPU compute (budget)", what: "Same pipeline on a rented GPU", option: "RunPod L4 / RTX 4090", size: "~30 min per block", cost: "$0.34–0.74 / h → ~$0.20–0.35 per block" },
-  { part: "GPU compute (own)", what: "Your PC with an NVIDIA GPU ≥ 8 GB", option: "FarmWings compute server", size: "~30 min per block (RTX 5070 laptop)", cost: "Free (electricity)" },
-  { part: "Job API", what: "Upload + queue + results (server/app.py)", option: "Runs on the GPU machine itself", size: "1 process", cost: "Included" },
-  { part: "Sign-in", what: "Sign in with Google, e-mail allow-list", option: "Google Identity Services (OAuth client)", size: "per user", cost: "Free" },
-];
-
-export function costTable() {
-  return `<div class="table-wrap"><table class="data" style="cursor:default"><thead><tr><th>Component</th><th>What it does</th><th>Recommended option</th><th>Size / time</th><th>Cost estimate</th></tr></thead><tbody>
-    ${COSTS.map((c) => `<tr style="cursor:default"><td><b>${esc(c.part)}</b></td><td>${esc(c.what)}</td><td>${esc(c.option)}</td><td>${esc(c.size)}</td><td>${esc(c.cost)}</td></tr>`).join("")}
-    </tbody></table></div>
-    <p class="small muted">On-demand list prices (us-east-1 / RunPod, 2026); verify with the provider before budgeting. Example: 41 blocks of this size ≈ 20 GPU-hours ≈ $16 on AWS L4, plus ~$2 / month storage.</p>`;
-}
-
 export function renderAnalyze(el) {
   const files = { rgb: null, ndvi: null };
   el.innerHTML = `
@@ -98,10 +81,7 @@ export function renderAnalyze(el) {
 
     <div class="section card"><h3>Surveys on this compute node</h3><div id="jobs" class="empty">Connect to see surveys.</div></div>
 
-    <div class="section">
-      <h2>Cloud requirements and costs</h2>
-      ${costTable()}
-    </div>`;
+    <p class="small muted section">Cloud storage, GPU options and cost estimates are in the <a href="https://github.com/athithyai/FarmWings#cloud-requirements-and-costs" target="_blank" rel="noopener">project README</a>.</p>`;
 
   let connected = false;
   let authRequired = false;
@@ -255,7 +235,7 @@ export function renderAnalyze(el) {
       b.textContent = "Loading…";
       await useSurvey(jobSurvey(serverUrl(), job));
       window.farmwings?.refreshSurveys?.();
-      navigate("#/");
+      navigate("#/overview");
     }));
     if (jobs.some((j) => j.status === "running" || j.status === "queued")) timer = setTimeout(refreshJobs, 3000);
   }

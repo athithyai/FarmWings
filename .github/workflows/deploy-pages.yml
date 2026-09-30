@@ -1,4 +1,4 @@
-name: Deploy Farmwings to GitHub Pages
+name: Deploy FarmWings to GitHub Pages
 
 # The pilot uses client imagery, so the repository is PRIVATE and this workflow does not
 # publish while it is. It deploys only when the repository is public (or on a plan whose

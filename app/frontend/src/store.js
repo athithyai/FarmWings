@@ -21,7 +21,18 @@ export function setServerUrl(u) {
 
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 export function survey() { return current; }
-export function surveyById(id) { return registry.get(id); }
+export function surveyById(id) { return registry.get(id) || previews.get(id); }
+
+// Project picker: summary + tile index only (the plant file is 13 MB and not needed there)
+const previews = new Map();
+export async function peekSurvey(desc) {
+  if (registry.has(desc.id)) return registry.get(desc.id);
+  if (!previews.has(desc.id)) {
+    const [summary, tiles] = await Promise.all([getJson(desc.base + "summary.json"), getJson(desc.base + "tiles/index.json")]);
+    previews.set(desc.id, { ...desc, summary, tiles });
+  }
+  return previews.get(desc.id);
+}
 
 async function getJson(url, optional = false) {
   const r = await fetch(url);

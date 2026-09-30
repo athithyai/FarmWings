@@ -1,4 +1,5 @@
 import { esc, fmt } from "../ui.js";
+import { detectionFlow, flowLegend, healthFlow, identificationFlow } from "../diagrams.js";
 
 export function renderMethod(el, s) {
   const M = s.summary.models;
@@ -11,7 +12,7 @@ export function renderMethod(el, s) {
 
   el.innerHTML = `
     <div class="page-head"><div><div class="eyebrow">Methodology</div><h1>How FarmWings reads a field</h1>
-      <p>Three separate models run on every survey: where each plant is, what it is, and how it is doing. Each result keeps the model and version that produced it.</p></div></div>
+      <p>Three separate models run on every survey: where each plant is, what it is, and how it is doing. Each result keeps the model and version that produced it.</p>${flowLegend}</div></div>
 
     <div class="steps">
       <div class="card stepcard">
@@ -23,6 +24,7 @@ export function renderMethod(el, s) {
       </div>
 
       <div class="card stepcard">
+        <div class="flow-row">${detectionFlow(st)}</div>
         <div><div class="eyebrow">Model 1</div><h3>Plant detection</h3>
           <p>Candidate spots come from RGB darkness plus NDVI above the local soil. <b>SAM 2.1</b> outlines each one on 1.2 cm imagery, and green NDVI patches that were missed get their own prompt.</p>
           <ul>
@@ -37,6 +39,7 @@ export function renderMethod(el, s) {
       </div>
 
       <div class="card stepcard">
+        <div class="flow-row">${identificationFlow(st, st.planted_class)}</div>
         <div><div class="eyebrow">Model 2 · Experimental</div><h3>Plant identification</h3>
           <p>Each plant's 6 mm crop (drip line removed, background masked) is embedded with <b>${esc(M.identification.backbone)}</b>, a satellite-pretrained foundation model, and combined with NDVI, colour and shape in a small classifier.</p>
           <ul>
@@ -52,6 +55,7 @@ export function renderMethod(el, s) {
       </div>
 
       <div class="card stepcard">
+        <div class="flow-row">${healthFlow(st, s.healthClasses)}</div>
         <div><div class="eyebrow">Model 3 · Experimental</div><h3>Plant health</h3>
           <p>There is no validated pretrained health model for young desert saplings, and no field health labels, so the model is <b>unsupervised</b>: a Gaussian mixture on the crown embedding plus NDVI and colour indicators groups the planted saplings, and the groups are named by their measured profile.</p>
           <table class="mini"><thead><tr><th>Group</th><th class="n">Plants</th><th>Profile</th></tr></thead><tbody>

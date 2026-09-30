@@ -2,7 +2,12 @@
 // The "fw" protocol serves fw://<survey>/<layer>/<z>/<x>/<y> by cropping the tile out of its
 // atlas. Encoded atlases stay cached; decoded bitmaps (16 MB each) are kept in a small LRU.
 import * as maplibregl from "maplibre-gl";
+// MapLibre v6 loads its web worker as a separate module. The worker URL must be set before
+// anything (addProtocol included) starts the worker pool, so it is set here, first.
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { surveyById } from "./store.js";
+
+maplibregl.setWorkerUrl(workerUrl);
 
 const blobCache = new Map();
 const bitmapCache = new Map();

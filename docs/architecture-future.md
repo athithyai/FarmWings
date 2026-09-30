@@ -7,7 +7,7 @@ rewriting the core: each processing stage already has a single input and a singl
 ```
 External mapping platform (e.g. drone operator / DroneDeploy / Pix4D exports)
         ↓  webhook or scheduled pull
-Farmwings API  (auth, projects, surveys, jobs)
+FarmWings API  (auth, projects, surveys, jobs)
         ↓
 User / organisation access  (orgs → projects → surveys; roles: owner, analyst, viewer)
         ↓
@@ -25,7 +25,7 @@ Plant health model           ─┘
         ↓
 PostGIS / geospatial services  (plants, lines, surveys; vector tiles; spatial queries)
         ↓
-Farmwings viewer  (same UI; data from the API instead of static JSON)
+FarmWings viewer  (same UI; data from the API instead of static JSON)
 ```
 
 ## Storage

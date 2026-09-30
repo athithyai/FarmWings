@@ -56,8 +56,17 @@ npm run build        # -> dist/ (relative paths; works under any sub-path)
 npm run preview      # http://localhost:4173
 ```
 
-Vite + MapLibre GL JS 6, with no UI framework and no external tile or basemap services.
-All selection statistics are computed in the browser.
+Vite + MapLibre GL JS 6, with no UI framework. Survey imagery is served from the bundled tiles; the only
+external map service is the project-picker basemap (OpenFreeMap, free, no key). All selection statistics
+are computed in the browser.
+
+Screens: a public landing page, sign-in (Google or demo access), the project picker, and the project
+workspace (Overview, Map, Plants, Insights, Methodology, Analyze survey).
+
+## Landing visuals
+
+`python processing/make_showcase.py` renders one 9 m x 6 m patch of the Pilot at every step (RGB,
+NDVI, detection, identification, health) into `public/showcase/`. Run it after the pipeline.
 
 ## Reproducibility notes
 

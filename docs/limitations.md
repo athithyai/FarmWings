@@ -31,3 +31,6 @@
   few plants for the health model; run them with health switched off.
 * Processing needs an NVIDIA GPU (≥ 8 GB). The web app itself runs without a server; uploads
   need a running FarmWings compute node.
+* The web app is static and the bundled survey data is public. Its sign-in (Google or demo
+  access) decides which screens open; it does not protect data. Surveys that must stay private
+  are kept on a compute node, which verifies Google sign-in itself.
