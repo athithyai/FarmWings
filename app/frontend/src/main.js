@@ -44,29 +44,52 @@ const fmt = {
   n: (v, d = 2) => (v == null ? "–" : Number(v).toFixed(d)),
 };
 
-// ---------------------------------------------------------------- tile packs
-// Tiles are packed into chunk files (see processing/make_tiles.py); this protocol
-// serves "fw://<layer>/<z>/<x>/<y>" from them, fetching each chunk once.
-const EMPTY_PNG = Uint8Array.from(atob(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="), (c) => c.charCodeAt(0)).buffer;
+// ---------------------------------------------------------------- tile atlases
+// Tiles are grouped into 8 x 8-tile WebP atlases (see processing/make_tiles.py). This
+// protocol serves "fw://<layer>/<z>/<x>/<y>" by cropping the tile out of its atlas. Encoded
+// atlases stay cached; decoded bitmaps (16 MB each) are kept in a small LRU.
 let tileIndex = null;
-const chunkCache = new Map();
-function loadChunk(file) {
-  if (!chunkCache.has(file)) {
-    chunkCache.set(file, fetch(DATA(`tiles/${file}`)).then((r) => {
-      if (!r.ok) throw new Error(`tile pack ${file}: ${r.status}`);
-      return r.arrayBuffer();
+const blobCache = new Map();
+const bitmapCache = new Map(); // insertion order = LRU order
+const BITMAP_LRU = 8;
+let emptyTile = null;
+async function getEmptyTile() {
+  if (!emptyTile) emptyTile = await createImageBitmap(new ImageData(1, 1));
+  return emptyTile;
+}
+function loadBlob(file) {
+  if (!blobCache.has(file)) {
+    blobCache.set(file, fetch(DATA(`tiles/${file}`)).then((r) => {
+      if (!r.ok) throw new Error(`tile atlas ${file}: ${r.status}`);
+      return r.blob();
     }));
   }
-  return chunkCache.get(file);
+  return blobCache.get(file);
+}
+async function loadAtlas(file) {
+  if (bitmapCache.has(file)) {
+    const p = bitmapCache.get(file);
+    bitmapCache.delete(file);
+    bitmapCache.set(file, p);
+    return p;
+  }
+  const p = loadBlob(file).then((b) => createImageBitmap(b));
+  bitmapCache.set(file, p);
+  while (bitmapCache.size > BITMAP_LRU) {
+    const [oldest, op] = bitmapCache.entries().next().value;
+    bitmapCache.delete(oldest);
+    op.then((bm) => bm.close?.()).catch(() => {});
+  }
+  return p;
 }
 maplibregl.addProtocol("fw", async (params) => {
   const [layer, z, x, y] = params.url.replace("fw://", "").split("/");
   const L = tileIndex?.layers?.[layer];
   const hit = L?.tiles[`${z}/${x}/${y}`];
-  if (!hit) return { data: EMPTY_PNG.slice(0) };
-  const buf = await loadChunk(L.files[hit[0]]);
-  return { data: buf.slice(hit[1], hit[1] + hit[2]) };
+  if (!hit) return { data: await getEmptyTile() };
+  const size = tileIndex.tile_size;
+  const atlas = await loadAtlas(L.files[hit[0]]);
+  return { data: await createImageBitmap(atlas, hit[1] * size, hit[2] * size, size, size) };
 });
 
 // ---------------------------------------------------------------- boot

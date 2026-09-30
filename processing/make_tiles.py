@@ -5,9 +5,11 @@ Layers
   ndvi     co-registered NDVI, colour ramp RdYlGn over [-0.05, 0.55], z16-z22
   vegmask  pixels whose NDVI exceeds the local soil background (robust z >= 3), z16-z22
 
-Why packs: static hosts that cap file counts (and slow git with thousands of tiny files).
-Tiles of one zoom are grouped into chunks of 8 x 8 tiles; public/data/tiles/index.json maps
-"z/x/y" -> [file, offset, length] and the viewer serves them through a MapLibre protocol.
+Why atlases: static hosts that cap file counts or file types (and git with thousands of tiny
+files). Tiles of one zoom are grouped into 8 x 8-tile chunks, each written as ONE ordinary
+WebP image (2048 x 2048 atlas, tile (x, y) at column x % 8, row y % 8).
+public/data/tiles/index.json maps "z/x/y" -> [atlas file, column, row]; the viewer decodes
+an atlas once and crops tiles from it through a MapLibre custom protocol.
 """
 from __future__ import annotations
 
@@ -49,25 +51,28 @@ class Packer:
         self.name = name
         self.chunks: dict[tuple, list] = {}
 
-    def add(self, z, x, y, data: bytes):
-        self.chunks.setdefault((z, x >> CHUNK_SHIFT, y >> CHUNK_SHIFT), []).append((z, x, y, data))
+    def add(self, z, x, y, rgba: np.ndarray):
+        self.chunks.setdefault((z, x >> CHUNK_SHIFT, y >> CHUNK_SHIFT), []).append((z, x, y, rgba))
 
     def write(self, minzoom, maxzoom, bounds_ll):
         d = TILES_DIR / self.name
         d.mkdir(parents=True, exist_ok=True)
-        for old in d.glob("*.bin"):
+        for old in list(d.glob("*.bin")) + list(d.glob("*.webp")):
             old.unlink()
+        n = 1 << CHUNK_SHIFT
         files, tiles, total = [], {}, 0
         for key in sorted(self.chunks):
-            fn = f"{self.name}/z{key[0]}_{key[1]}_{key[2]}.bin"
-            buf = bytearray()
-            for z, x, y, data in self.chunks[key]:
-                tiles[f"{z}/{x}/{y}"] = [len(files), len(buf), len(data)]
-                buf += data
-            (TILES_DIR / fn).write_bytes(bytes(buf))
+            fn = f"{self.name}/z{key[0]}_{key[1]}_{key[2]}.webp"
+            atlas = np.zeros((n * 256, n * 256, 4), np.uint8)
+            for z, x, y, rgba in self.chunks[key]:
+                col, row = x & (n - 1), y & (n - 1)
+                atlas[row * 256:(row + 1) * 256, col * 256:(col + 1) * 256] = rgba
+                tiles[f"{z}/{x}/{y}"] = [len(files), col, row]
+            data = encode(atlas)
+            (TILES_DIR / fn).write_bytes(data)
             files.append(fn)
-            total += len(buf)
-        print(f"  {self.name}: {len(tiles)} tiles in {len(files)} packs, {total / 1e6:.1f} MB")
+            total += len(data)
+        print(f"  {self.name}: {len(tiles)} tiles in {len(files)} atlases, {total / 1e6:.1f} MB")
         return {"minzoom": minzoom, "maxzoom": maxzoom, "bounds": bounds_ll, "files": files, "tiles": tiles,
                 "bytes": total}
 
@@ -101,9 +106,8 @@ def pyramid(arr, tx0, ty0, zmax, zmin, to_rgba, down, packer, fill):
         for j in range(H // 256):
             for i in range(W // 256):
                 t = to_rgba(arr[j * 256:(j + 1) * 256, i * 256:(i + 1) * 256])
-                data = encode(t)
-                if data:
-                    packer.add(z, tx0 + i, ty0 + j, data)
+                if t[..., 3].any():
+                    packer.add(z, tx0 + i, ty0 + j, t)
         if z == zmin:
             break
         arr, tx0, ty0 = pad_even(arr, tx0, ty0, fill)
@@ -174,7 +178,8 @@ def main(input_dir=DEFAULT_INPUT, rgb_zmax=23, zmax=22, zmin=16) -> dict:
     from detect_plants import _nan_gauss, _robust_z
 
     rgb_path, _ = find_inputs(input_dir)
-    index = {"chunk_shift": CHUNK_SHIFT, "ndvi_range": NDVI_RANGE, "layers": {}}
+    index = {"format": "webp-atlas", "chunk_shift": CHUNK_SHIFT, "tile_size": 256, "ndvi_range": NDVI_RANGE,
+             "layers": {}}
 
     with rasterio.open(OUT / "aligned" / "ndvi_coreg.tif") as d:
         nd = d.read(1).astype(np.float32)
