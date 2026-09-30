@@ -1,0 +1,33 @@
+{
+  "model": "Frozen dinov3-vitl16-sat493m crown-crop embedding + NDVI/RGB/geometry features -> logistic regression",
+  "backbone": "facebook/dinov3-vitl16-pretrain-sat493m",
+  "version": "0.1.0",
+  "classes": [
+    "Palm (planted)",
+    "Other vegetation",
+    "Unclassified"
+  ],
+  "min_confidence": 0.7,
+  "n_plants": 6754,
+  "class_counts": {
+    "Other vegetation": 1215,
+    "Palm (planted)": 5402,
+    "Unclassified": 137
+  },
+  "identified_fraction": 0.9797157240153983,
+  "weak_labels": {
+    "planted": 5101,
+    "other": 984,
+    "unlabelled": 669
+  },
+  "spatial_cv": {
+    "folds": 5,
+    "block_m": 25.0,
+    "roc_auc": 0.9892038544968865,
+    "balanced_accuracy": 0.9646574161291506
+  },
+  "label_agreement_on_unlabelled": {
+    "on_line_unlabelled_predicted_palm": 0.5620328849028401
+  },
+  "processing_date": "2026-09-30"
+}

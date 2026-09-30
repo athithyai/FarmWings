@@ -1,0 +1,217 @@
+{
+  "project": "Hari Pilot",
+  "brand": "Farmwings",
+  "subtitle": "Drone Mapping & Plant Intelligence",
+  "processing_date": "2026-09-30",
+  "declared_species": "Palm (as supplied by the project; not confirmable from imagery at seedling size)",
+  "lifecycle": [
+    {
+      "step": "Data received",
+      "status": "done",
+      "detail": "RGB 6 mm + NDVI 2.36 cm, EPSG:32638"
+    },
+    {
+      "step": "Aligned & co-registered",
+      "status": "done",
+      "detail": "median residual shift 4.8 cm corrected"
+    },
+    {
+      "step": "Planting lines",
+      "status": "done",
+      "detail": "112 drip lines, 2.00 m spacing"
+    },
+    {
+      "step": "Plant detection",
+      "status": "done",
+      "detail": "5,770 planted positions + 984 between-line vegetation"
+    },
+    {
+      "step": "Identification",
+      "status": "partial",
+      "detail": "98% identified; experimental, weakly supervised"
+    },
+    {
+      "step": "Health analysis",
+      "status": "done",
+      "detail": "relative vigour index (RGB + NDVI); experimental"
+    },
+    {
+      "step": "Results published",
+      "status": "done",
+      "detail": "static viewer"
+    }
+  ],
+  "stats": {
+    "planted_positions": 5770,
+    "between_line_vegetation": 984,
+    "all_detections": 6754,
+    "identified": 6617,
+    "identification_rate": 0.9797157240153983,
+    "class_counts": {
+      "Palm (planted)": 5402,
+      "Other vegetation": 1215,
+      "Unclassified": 137
+    },
+    "palms_identified": 5402,
+    "health_counts_planted": {
+      "Moderate vigour": 2022,
+      "Low vigour": 1471,
+      "High vigour": 1390,
+      "Very high vigour": 621,
+      "Very low vigour": 266
+    },
+    "high_vigour_planted": 2011,
+    "low_vigour_planted": 1737,
+    "high_vigour_share_planted": 0.34852686308492203,
+    "avg_health_score_planted": 0.5234793760831888,
+    "avg_mean_ndvi_planted": 0.2524286828422877,
+    "field_soil_ndvi_median": 0.09923648461699486,
+    "planting_lines": 112,
+    "line_spacing_m": 1.9981333333333404,
+    "planted_density_per_ha": 2166.861513326214,
+    "surveyed_area_ha": 2.6628374561615766
+  },
+  "models": {
+    "detection": {
+      "name": "RGB+NDVI plant-ness candidates + drip-line context + SAM 2.1 hiera-large prompts",
+      "version": "0.1.0",
+      "summary": "RGB darkness + NDVI anomaly candidates, drip-line context, SAM 2.1 hiera-large point+box prompts, core trimming",
+      "confidence_note": "heuristic score (SAM mask IoU x candidate strength), not a calibrated probability",
+      "rejected": {
+        "DeepForest tree model (weecology/deepforest-tree)": "0 detections on 3 test tiles at 2.4 cm and 10 cm (score>0.1)",
+        "SAM 2.1 automatic mask generation": "226 unselective masks per 24 m tile (soil, lines)"
+      }
+    },
+    "identification": {
+      "name": "Frozen dinov3-vitl16-sat493m crown-crop embedding + NDVI/RGB/geometry features -> logistic regression",
+      "backbone": "facebook/dinov3-vitl16-pretrain-sat493m",
+      "version": "0.1.0",
+      "classes": [
+        "Palm (planted)",
+        "Other vegetation",
+        "Unclassified"
+      ],
+      "min_confidence": 0.7,
+      "spatial_cv": {
+        "folds": 5,
+        "block_m": 25.0,
+        "roc_auc": 0.9892038544968865,
+        "balanced_accuracy": 0.9646574161291506
+      },
+      "weak_labels": {
+        "planted": 5101,
+        "other": 984,
+        "unlabelled": 669
+      },
+      "experimental": true,
+      "trial": {
+        "n_labelled": 6085,
+        "n_planted": 5101,
+        "n_other": 984,
+        "ndvi_rgb_geometry_only": {
+          "roc_auc": 0.9722,
+          "balanced_accuracy": 0.9332
+        },
+        "dinov2-base_only": {
+          "roc_auc": 0.9862,
+          "balanced_accuracy": 0.9494
+        },
+        "dinov2-base+tabular": {
+          "roc_auc": 0.987,
+          "balanced_accuracy": 0.9551
+        },
+        "dinov3-vitl16-sat493m_only": {
+          "roc_auc": 0.9819,
+          "balanced_accuracy": 0.9402
+        },
+        "dinov3-vitl16-sat493m+tabular": {
+          "roc_auc": 0.9835,
+          "balanced_accuracy": 0.9457
+        },
+        "clip-vit-l14_only": {
+          "roc_auc": 0.9859,
+          "balanced_accuracy": 0.9572
+        },
+        "clip-vit-l14+tabular": {
+          "roc_auc": 0.9874,
+          "balanced_accuracy": 0.9576
+        },
+        "dinov2-base_crown_only": {
+          "roc_auc": 0.9842,
+          "balanced_accuracy": 0.9602
+        },
+        "dinov2-base_crown+tabular": {
+          "roc_auc": 0.9847,
+          "balanced_accuracy": 0.9601
+        },
+        "dinov3-vitl16-sat493m_crown_only": {
+          "roc_auc": 0.989,
+          "balanced_accuracy": 0.9637
+        },
+        "dinov3-vitl16-sat493m_crown+tabular": {
+          "roc_auc": 0.9892,
+          "balanced_accuracy": 0.9647
+        },
+        "clip-vit-l14_crown_only": {
+          "roc_auc": 0.9846,
+          "balanced_accuracy": 0.9564
+        },
+        "clip-vit-l14_crown+tabular": {
+          "roc_auc": 0.9852,
+          "balanced_accuracy": 0.9579
+        },
+        "clip_zero_shot": {
+          "roc_auc": 0.7669,
+          "balanced_accuracy": 0.5648
+        }
+      }
+    },
+    "health": {
+      "name": "Relative multimodal vigour model (NDVI + RGB indices, robust z vs field)",
+      "version": "0.1.0",
+      "approach": "B - relative multimodal (no suitable pretrained model)",
+      "weights": {
+        "ndvi_contrast": 0.3,
+        "p90_ndvi": 0.2,
+        "median_ndvi": 0.15,
+        "vari": 0.15,
+        "green_fraction": 0.1,
+        "log_green_area": 0.1
+      },
+      "class_bands_z": {
+        "Very high vigour": 1.5,
+        "High vigour": 0.5,
+        "Moderate vigour": -0.5,
+        "Low vigour": -1.5,
+        "Very low vigour": -Infinity
+      },
+      "consistency_spearman_ndvi_vs_rgb": 0.7637733530218411,
+      "experimental": true,
+      "disclaimer": "Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a laboratory disease diagnosis."
+    }
+  },
+  "data": {
+    "rgb": {
+      "file": "4_9_197.tif",
+      "pixel_size_m": 0.006000000000000985,
+      "size": [
+        42570,
+        33646
+      ]
+    },
+    "ndvi": {
+      "file": "NDVI_197.tif",
+      "pixel_size_m": 0.02359999999999864,
+      "size": [
+        10823,
+        8554
+      ],
+      "range": [
+        -0.34142449498176575,
+        0.8034067749977112
+      ],
+      "median": 0.09967459738254547
+    },
+    "crs": "EPSG:32638"
+  }
+}

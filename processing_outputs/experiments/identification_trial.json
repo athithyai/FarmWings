@@ -1,0 +1,61 @@
+{
+  "n_labelled": 6085,
+  "n_planted": 5101,
+  "n_other": 984,
+  "ndvi_rgb_geometry_only": {
+    "roc_auc": 0.9722,
+    "balanced_accuracy": 0.9332
+  },
+  "dinov2-base_only": {
+    "roc_auc": 0.9862,
+    "balanced_accuracy": 0.9494
+  },
+  "dinov2-base+tabular": {
+    "roc_auc": 0.987,
+    "balanced_accuracy": 0.9551
+  },
+  "dinov3-vitl16-sat493m_only": {
+    "roc_auc": 0.9819,
+    "balanced_accuracy": 0.9402
+  },
+  "dinov3-vitl16-sat493m+tabular": {
+    "roc_auc": 0.9835,
+    "balanced_accuracy": 0.9457
+  },
+  "clip-vit-l14_only": {
+    "roc_auc": 0.9859,
+    "balanced_accuracy": 0.9572
+  },
+  "clip-vit-l14+tabular": {
+    "roc_auc": 0.9874,
+    "balanced_accuracy": 0.9576
+  },
+  "dinov2-base_crown_only": {
+    "roc_auc": 0.9842,
+    "balanced_accuracy": 0.9602
+  },
+  "dinov2-base_crown+tabular": {
+    "roc_auc": 0.9847,
+    "balanced_accuracy": 0.9601
+  },
+  "dinov3-vitl16-sat493m_crown_only": {
+    "roc_auc": 0.989,
+    "balanced_accuracy": 0.9637
+  },
+  "dinov3-vitl16-sat493m_crown+tabular": {
+    "roc_auc": 0.9892,
+    "balanced_accuracy": 0.9647
+  },
+  "clip-vit-l14_crown_only": {
+    "roc_auc": 0.9846,
+    "balanced_accuracy": 0.9564
+  },
+  "clip-vit-l14_crown+tabular": {
+    "roc_auc": 0.9852,
+    "balanced_accuracy": 0.9579
+  },
+  "clip_zero_shot": {
+    "roc_auc": 0.7669,
+    "balanced_accuracy": 0.5648
+  }
+}

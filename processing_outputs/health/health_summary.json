@@ -1,0 +1,95 @@
+{
+  "model": "Relative multimodal vigour model (NDVI + RGB indices, robust z vs field)",
+  "version": "0.1.0",
+  "approach": "B - relative multimodal (no suitable pretrained model)",
+  "weights": {
+    "ndvi_contrast": 0.3,
+    "p90_ndvi": 0.2,
+    "median_ndvi": 0.15,
+    "vari": 0.15,
+    "green_fraction": 0.1,
+    "log_green_area": 0.1
+  },
+  "class_bands_z": {
+    "Very high vigour": 1.5,
+    "High vigour": 0.5,
+    "Moderate vigour": -0.5,
+    "Low vigour": -1.5,
+    "Very low vigour": -Infinity
+  },
+  "n_plants": 6754,
+  "class_counts": {
+    "Moderate vigour": 2552,
+    "Low vigour": 1713,
+    "High vigour": 1535,
+    "Very high vigour": 684,
+    "Very low vigour": 270
+  },
+  "no_green_signal": 0,
+  "mean_health_score": 0.517551969203435,
+  "field_median": {
+    "ndvi_contrast": 0.12200557813048363,
+    "p90_ndvi": 0.36987562477588654,
+    "median_ndvi": 0.22250663489103317,
+    "vari": -0.11038961261510849,
+    "green_fraction": 0.3126286008230453,
+    "log_green_area": -2.874027958840101,
+    "bg_ndvi": 0.09923648461699486,
+    "mean_ndvi": 0.23993073403835297
+  },
+  "consistency": {
+    "spearman_ndvi_subscore_vs_rgb_subscore": 0.7637733530218411,
+    "indicator_spearman_matrix": {
+      "ndvi_contrast": {
+        "ndvi_contrast": 1.0,
+        "p90_ndvi": 0.899,
+        "median_ndvi": 0.962,
+        "vari": 0.627,
+        "green_fraction": 0.789,
+        "log_green_area": 0.574
+      },
+      "p90_ndvi": {
+        "ndvi_contrast": 0.899,
+        "p90_ndvi": 1.0,
+        "median_ndvi": 0.896,
+        "vari": 0.667,
+        "green_fraction": 0.8,
+        "log_green_area": 0.664
+      },
+      "median_ndvi": {
+        "ndvi_contrast": 0.962,
+        "p90_ndvi": 0.896,
+        "median_ndvi": 1.0,
+        "vari": 0.626,
+        "green_fraction": 0.832,
+        "log_green_area": 0.623
+      },
+      "vari": {
+        "ndvi_contrast": 0.627,
+        "p90_ndvi": 0.667,
+        "median_ndvi": 0.626,
+        "vari": 1.0,
+        "green_fraction": 0.764,
+        "log_green_area": 0.674
+      },
+      "green_fraction": {
+        "ndvi_contrast": 0.789,
+        "p90_ndvi": 0.8,
+        "median_ndvi": 0.832,
+        "vari": 0.764,
+        "green_fraction": 1.0,
+        "log_green_area": 0.833
+      },
+      "log_green_area": {
+        "ndvi_contrast": 0.574,
+        "p90_ndvi": 0.664,
+        "median_ndvi": 0.623,
+        "vari": 0.674,
+        "green_fraction": 0.833,
+        "log_green_area": 1.0
+      }
+    }
+  },
+  "disclaimer": "Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a laboratory disease diagnosis.",
+  "processing_date": "2026-09-30"
+}
