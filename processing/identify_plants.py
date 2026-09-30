@@ -25,12 +25,15 @@ identification_summary.json, identification_examples.png
 from __future__ import annotations
 
 import argparse
+import os
 
-from common import DEFAULT_INPUT, OUT, PROCESSING_DATE, find_inputs, out_dir, write_json  # noqa: I001
+from common import DEFAULT_INPUT, OUT, PROCESSING_DATE, ROOT, SPECIES, find_inputs, out_dir, write_json  # noqa: I001
 
 import numpy as np
 
-PALM, OTHER, UNCLASSIFIED = "Palm (planted)", "Other vegetation", "Unclassified"
+PALM, OTHER, UNCLASSIFIED = f"{SPECIES} (planted)", "Other vegetation", "Unclassified"
+REFERENCE_MODEL = ROOT / "models" / "identification_reference.joblib"   # trained on the Pilot survey
+MIN_LABELS_PER_CLASS = 30
 MIN_CONFIDENCE = 0.7
 IDENT_MODEL = "Frozen {backbone} crown-crop embedding + NDVI/RGB/geometry features -> logistic regression"
 IDENT_VERSION = "0.1.0"
@@ -229,11 +232,28 @@ def main(input_dir=DEFAULT_INPUT, backbone=DEFAULT_BACKBONE) -> dict:
     lab = y >= 0
     groups = spatial_groups(gdf)
 
-    # Honest confidence for labelled rows = out-of-fold (spatial CV) probability
-    p_oof = oof_proba(X[lab], y[lab], groups[lab])
-    final = classifier().fit(X[lab], y[lab])
-    p = final.predict_proba(X)[:, 1]
-    p[lab] = p_oof
+    import joblib
+    n_pos, n_neg = int((y == 1).sum()), int((y == 0).sum())
+    cv = None
+    if n_pos >= MIN_LABELS_PER_CLASS and n_neg >= MIN_LABELS_PER_CLASS:
+        # Train on this survey's own weak labels; honest confidence for labelled rows is the
+        # out-of-fold (spatial CV) probability
+        trained_on = "this survey (weak labels from the planting layout)"
+        p_oof = oof_proba(X[lab], y[lab], groups[lab])
+        final = classifier().fit(X[lab], y[lab])
+        p = final.predict_proba(X)[:, 1]
+        p[lab] = p_oof
+        cv = {"folds": 5, "block_m": 25.0, "roc_auc": float(roc_auc_score(y[lab], p_oof)),
+              "balanced_accuracy": float(balanced_accuracy_score(y[lab], p_oof >= 0.5))}
+        joblib.dump({"model": final, "backbone": backbone, "features": TABULAR}, out / "identification_model.joblib")
+        if "FARMWINGS_OUT" not in os.environ:          # the reference Pilot run
+            REFERENCE_MODEL.parent.mkdir(parents=True, exist_ok=True)
+            joblib.dump({"model": final, "backbone": backbone, "features": TABULAR}, REFERENCE_MODEL)
+    else:
+        # Too few weak labels (e.g. no visible drip lines): same model, trained on the Pilot survey
+        trained_on = f"Pilot reference model (this survey had {n_pos} planted / {n_neg} other weak labels)"
+        ref = joblib.load(REFERENCE_MODEL)
+        p = ref["model"].predict_proba(X)[:, 1]
 
     conf = np.maximum(p, 1 - p)
     cls = np.where(p >= 0.5, PALM, OTHER)
@@ -242,7 +262,8 @@ def main(input_dir=DEFAULT_INPUT, backbone=DEFAULT_BACKBONE) -> dict:
     res = gdf[["plant_id", "geometry"]].copy()
     res["predicted_class"] = cls
     res["prediction_confidence"] = conf.round(3)
-    res["p_planted_palm"] = p.round(3)
+    res["p_planted"] = p.round(3)
+    res["identification_trained_on"] = trained_on
     res["weak_label"] = np.select([y == 1, y == 0], [PALM, OTHER], "unlabelled")
     res["identification_model"] = IDENT_MODEL.format(backbone=backbone)
     res["identification_backbone"] = BACKBONES[backbone]
@@ -260,13 +281,10 @@ def main(input_dir=DEFAULT_INPUT, backbone=DEFAULT_BACKBONE) -> dict:
         "n_plants": int(len(gdf)), "class_counts": counts,
         "identified_fraction": float((cls != UNCLASSIFIED).mean()),
         "weak_labels": {"planted": int((y == 1).sum()), "other": int((y == 0).sum()), "unlabelled": int((y < 0).sum())},
-        "spatial_cv": {
-            "folds": 5, "block_m": 25.0,
-            "roc_auc": float(roc_auc_score(y[lab], p_oof)),
-            "balanced_accuracy": float(balanced_accuracy_score(y[lab], p_oof >= 0.5)),
-        },
+        "trained_on": trained_on,
+        "spatial_cv": cv,
         "label_agreement_on_unlabelled": {
-            "on_line_unlabelled_predicted_palm": float((cls[(y < 0) & gdf.on_planting_line.values] == PALM).mean())
+            "on_line_unlabelled_predicted_planted": float((cls[(y < 0) & gdf.on_planting_line.values] == PALM).mean())
             if ((y < 0) & gdf.on_planting_line.values).any() else None,
         },
         "processing_date": PROCESSING_DATE,

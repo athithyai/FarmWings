@@ -108,7 +108,7 @@ def main(input_dir: Path) -> dict:
         "resolution_ratio": ndvi["pixel_size_m"][0] / rgb["pixel_size_m"][0],
         "same_grid": rgb["transform"] == ndvi["transform"] and rgb["width"] == ndvi["width"],
     }
-    inv = {"input_dir": str(input_dir), "rgb": rgb, "ndvi": ndvi, "alignment": align}
+    inv = {"input_dir": Path(input_dir).name, "rgb": rgb, "ndvi": ndvi, "alignment": align}
     write_json(out / "inventory.json", inv)
     print(f"RGB  {rgb['width']}x{rgb['height']} @ {rgb['pixel_size_m'][0]:.4f} m  {rgb['crs']}")
     print(f"NDVI {ndvi['width']}x{ndvi['height']} @ {ndvi['pixel_size_m'][0]:.4f} m  range {ndvi['value_stats']['min']:.3f}..{ndvi['value_stats']['max']:.3f}")

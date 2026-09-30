@@ -18,10 +18,13 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "processing_outputs"
-WEB_DATA = ROOT / "public" / "data"
-
-DEFAULT_INPUT = Path(r"C:\Users\great\Documents\Lab\Hari\Pilot")
+# Every location / label can be overridden per run (the compute server runs one job per folder)
+OUT = Path(os.environ.get("FARMWINGS_OUT", ROOT / "processing_outputs"))
+WEB_DATA = Path(os.environ.get("FARMWINGS_WEB", ROOT / "public" / "data"))
+DEFAULT_INPUT = Path(os.environ.get("FARMWINGS_INPUT", ROOT.parent / "Pilot"))
+PROJECT_NAME = os.environ.get("FARMWINGS_PROJECT", "Pilot")
+SPECIES = os.environ.get("FARMWINGS_SPECIES", "Rhanterium epapposum")   # planted species (installation record, block 4-9/197/RE)
+BRAND = "FarmWings"
 
 PROCESSING_DATE = date.today().isoformat()
 

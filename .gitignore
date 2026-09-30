@@ -21,3 +21,14 @@ Thumbs.db
 # Large intermediate vector outputs (compact copies are published in public/data)
 processing_outputs/**/*.geojson
 processing_outputs/explore/
+
+# Compute server jobs (uploads + results)
+server_jobs/
+processing_outputs/*.log
+
+# Client reference data (validation only, never published)
+processing_outputs/reference/
+processing_outputs/experiments/disagree_*.png
+processing_outputs/experiments/disagreements.csv
+processing_outputs/experiments/validation_reference.json
+processing_outputs/experiments/plants_*.geojson

@@ -1,28 +1,33 @@
-"""Farmwings pipeline - one command, independently inspectable stages.
+"""FarmWings pipeline - one command, independently inspectable stages.
 
-    python processing/run_pipeline.py --input "C:\\Users\\great\\Documents\\Lab\\Hari\\Pilot"
-    python processing/run_pipeline.py --from identify     # resume from a stage
-    python processing/run_pipeline.py --only health       # run a single stage
+    python processing/run_pipeline.py --input path/to/Pilot
+    python processing/run_pipeline.py --from identify          # resume from a stage
+    python processing/run_pipeline.py --only health            # run a single stage
+    python processing/run_pipeline.py --input job/input --out job/outputs --web job/web \\
+        --project "North block" --species Palm                  # what the compute server runs
 
-Stages (each writes to processing_outputs/<stage>/ and can be run on its own):
-  inspect   -> inspect/inventory.json, previews                       (inspect_data.py)
-  align     -> aligned/rgb_aligned.tif, ndvi_aligned.tif, ndvi_coreg.tif (align_rasters.py)
-  lines     -> lines/planting_lines.geojson                          (detect_lines.py)
-  detect    -> detection/plants.geojson                              (detect_plants.py)
-  identify  -> identification/plant_identification.geojson           (identify_plants.py)
-  health    -> health/plant_health.geojson                           (assess_health.py)
-  export    -> web/combined_plants.geojson, public/data/*.json       (export_results.py)
-  tiles     -> public/data/tiles/ (packed WebP XYZ tiles)            (make_tiles.py)
+Stages (each writes to <out>/<stage>/ and can be run on its own):
+  inspect   -> inspect/inventory.json, previews                          (inspect_data.py)
+  align     -> aligned/rgb_aligned.tif, rgb_fine.tif, ndvi_coreg.tif     (align_rasters.py)
+  lines     -> lines/planting_lines.geojson                              (detect_lines.py)
+  detect    -> detection/plants.geojson                                  (detect_plants.py)
+  identify  -> identification/plant_identification.geojson               (identify_plants.py)
+  health    -> health/plant_health.geojson                               (assess_health.py)
+  export    -> web/combined_plants.geojson, <web>/*.json                 (export_results.py)
+  tiles     -> <web>/tiles/ (WebP atlases)                               (make_tiles.py)
+  media     -> <web>/media/ (plant thumbnails), <web>/figures/           (export_media.py)
+
+Progress lines "=== <stage> ===" and "=== <stage> done in N s" are parsed by the compute server.
 """
 from __future__ import annotations
 
 import argparse
+import os
+import sys
 import time
 from pathlib import Path
 
-from common import DEFAULT_INPUT  # noqa: I001 (sets PROJ_DATA first)
-
-STAGES = ["inspect", "align", "lines", "detect", "identify", "health", "export", "tiles"]
+STAGES = ["inspect", "align", "lines", "detect", "identify", "health", "export", "tiles", "media"]
 
 
 def run(stage: str, input_dir: Path):
@@ -43,27 +48,42 @@ def run(stage: str, input_dir: Path):
         identify_plants.main(input_dir)
     elif stage == "health":
         import assess_health
-        assess_health.main()
+        assess_health.main(input_dir)
     elif stage == "export":
         import export_results
         export_results.main()
     elif stage == "tiles":
         import make_tiles
         print(make_tiles.main(input_dir))
+    elif stage == "media":
+        import export_media
+        export_media.main()
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="folder with the RGB and NDVI GeoTIFFs")
+    ap.add_argument("--input", type=Path, help="folder with the RGB and NDVI GeoTIFFs (default: ../Pilot)")
+    ap.add_argument("--out", type=Path, help="stage outputs folder (default: processing_outputs)")
+    ap.add_argument("--web", type=Path, help="web data folder (default: public/data)")
+    ap.add_argument("--project", help='project name shown in the app (default "Pilot")')
+    ap.add_argument("--species", help='declared planted species (default "Palm")')
     ap.add_argument("--from", dest="start", choices=STAGES, default=STAGES[0])
     ap.add_argument("--only", choices=STAGES)
     a = ap.parse_args()
+    # settings must be in the environment before common.py is imported by any stage
+    for flag, env in [(a.input, "FARMWINGS_INPUT"), (a.out, "FARMWINGS_OUT"), (a.web, "FARMWINGS_WEB"),
+                      (a.project, "FARMWINGS_PROJECT"), (a.species, "FARMWINGS_SPECIES")]:
+        if flag is not None:
+            os.environ[env] = str(Path(flag).resolve()) if isinstance(flag, Path) else flag
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from common import DEFAULT_INPUT  # noqa: E402
+
     stages = [a.only] if a.only else STAGES[STAGES.index(a.start):]
     for s in stages:
         t = time.time()
-        print(f"\n=== {s} ===")
-        run(s, a.input)
-        print(f"=== {s} done in {time.time() - t:.0f} s")
+        print(f"\n=== {s} ===", flush=True)
+        run(s, DEFAULT_INPUT)
+        print(f"=== {s} done in {time.time() - t:.0f} s", flush=True)
 
 
 if __name__ == "__main__":

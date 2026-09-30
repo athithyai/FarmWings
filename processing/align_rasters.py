@@ -7,6 +7,7 @@ the same grid with an explicit nodata value.
 
 Outputs (processing_outputs/aligned/):
   rgb_aligned.tif   uint8 RGBA, NDVI grid, tiled + LZW + overviews
+  rgb_fine.tif      uint8 RGB on a 2x finer grid (1.18 cm) for SAM 2.1 segmentation of small saplings
   ndvi_aligned.tif  float32, NDVI grid, nodata -32767, tiled + deflate + overviews
   ndvi_coreg.tif    NDVI after local sub-pixel co-registration to the RGB content
   shift_field.json  per-tile shifts measured by phase correlation
@@ -67,6 +68,22 @@ def interpolate_field(rows: np.ndarray, shape, coarse=64):
     return fy, fx
 
 
+def write_fine_rgb(src, grid, path, has_alpha):
+    """RGB on a grid exactly 2x finer than the analysis grid (1.18 cm for the Pilot), averaged
+    from the source mosaic. SAM 2.1 segments on this grid so small saplings keep their shape."""
+    t = grid["transform"]
+    fine = dict(crs=grid["crs"], transform=rasterio.Affine(t.a / 2, t.b, t.c, t.d, t.e / 2, t.f),
+                width=grid["width"] * 2, height=grid["height"] * 2)
+    with rasterio.open(path, "w", driver="GTiff", count=3, dtype="uint8", compress="lzw", tiled=True,
+                       blockxsize=512, blockysize=512, photometric="RGB", **fine) as dst:
+        for b in range(1, 4):
+            reproject(source=rasterio.band(src, b), destination=rasterio.band(dst, b),
+                      src_transform=src.transform, src_crs=src.crs,
+                      dst_transform=fine["transform"], dst_crs=fine["crs"],
+                      resampling=Resampling.average, num_threads=4)
+        print(f"  fine RGB {fine['width']}x{fine['height']} @ {abs(fine['transform'].a):.4f} m written")
+
+
 def main(input_dir: Path) -> dict:
     rgb_path, ndvi_path = find_inputs(input_dir)
     out = out_dir("aligned")
@@ -74,11 +91,15 @@ def main(input_dir: Path) -> dict:
         grid = dict(crs=n.crs, transform=n.transform, width=n.width, height=n.height)
         ndvi = n.read(1)
         src_nodata = n.nodata
-    ndvi = np.where((ndvi == src_nodata) | ~np.isfinite(ndvi), NODATA, ndvi).astype("float32")
+    bad = ~np.isfinite(ndvi) | (ndvi < -1.5) | (ndvi > 1.5)
+    if src_nodata is not None:
+        bad |= ndvi == src_nodata
+    ndvi = np.where(bad, NODATA, ndvi).astype("float32")
 
     rgb = np.zeros((4, grid["height"], grid["width"]), dtype="uint8")
     with rasterio.open(rgb_path) as r:
-        for b in range(1, 5):
+        has_alpha = r.count >= 4
+        for b in range(1, 5 if has_alpha else 4):
             reproject(
                 source=rasterio.band(r, b), destination=rgb[b - 1],
                 src_transform=r.transform, src_crs=r.crs,
@@ -86,7 +107,10 @@ def main(input_dir: Path) -> dict:
                 resampling=Resampling.average, num_threads=4,
             )
             print(f"  RGB band {b} resampled")
+        if not has_alpha:   # 3-band RGB: no-data = black (or the declared nodata) pixels
+            rgb[3] = np.where(rgb[:3].max(0) > 0, 255, 0)
         rgb_res = r.res
+        write_fine_rgb(r, grid, out / "rgb_fine.tif", has_alpha)
     # Pixel is valid for analysis when both sources have data
     valid = (rgb[3] > 127) & (ndvi != NODATA)
     rgb[3] = np.where(valid, 255, 0)
@@ -94,6 +118,9 @@ def main(input_dir: Path) -> dict:
 
     # Local co-registration of NDVI to the RGB content
     rows = shift_field(rgb, np.where(valid, ndvi, np.nan).astype(np.float32), valid)
+    if len(rows) == 0:   # small or low-texture survey: no reliable tile, keep the delivered alignment
+        rows = np.zeros((1, 5))
+        rows[0, :2] = [ndvi.shape[0] / 2, ndvi.shape[1] / 2]
     fy, fx = interpolate_field(rows, ndvi.shape)
     yy, xx = np.mgrid[0:ndvi.shape[0], 0:ndvi.shape[1]].astype(np.float32)
     # corrected[y, x] = ndvi[y - dy, x - dx]

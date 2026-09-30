@@ -1,0 +1,26 @@
+{
+  "0.01-0.02 m2": {
+    "patches": 10968,
+    "covered": 1546,
+    "missed_on_line": 0,
+    "missed_between": 9422
+  },
+  "0.02-0.05 m2": {
+    "patches": 6960,
+    "covered": 2911,
+    "missed_on_line": 475,
+    "missed_between": 3574
+  },
+  "0.05-0.1 m2": {
+    "patches": 2800,
+    "covered": 2707,
+    "missed_on_line": 40,
+    "missed_between": 53
+  },
+  "0.1-99 m2": {
+    "patches": 4805,
+    "covered": 4778,
+    "missed_on_line": 16,
+    "missed_between": 11
+  }
+}

@@ -3,31 +3,32 @@
   "backbone": "facebook/dinov3-vitl16-pretrain-sat493m",
   "version": "0.1.0",
   "classes": [
-    "Palm (planted)",
+    "Rhanterium epapposum (planted)",
     "Other vegetation",
     "Unclassified"
   ],
   "min_confidence": 0.7,
-  "n_plants": 6654,
+  "n_plants": 8282,
   "class_counts": {
-    "Other vegetation": 1085,
-    "Palm (planted)": 5458,
-    "Unclassified": 111
+    "Other vegetation": 2749,
+    "Rhanterium epapposum (planted)": 5330,
+    "Unclassified": 203
   },
-  "identified_fraction": 0.9833183047790802,
+  "identified_fraction": 0.9754890123158657,
   "weak_labels": {
-    "planted": 5123,
-    "other": 946,
-    "unlabelled": 585
+    "planted": 5018,
+    "other": 2620,
+    "unlabelled": 644
   },
+  "trained_on": "this survey (weak labels from the planting layout)",
   "spatial_cv": {
     "folds": 5,
     "block_m": 25.0,
-    "roc_auc": 0.9928750620569096,
-    "balanced_accuracy": 0.9799139890202087
+    "roc_auc": 0.9907351853936515,
+    "balanced_accuracy": 0.9772766133522373
   },
   "label_agreement_on_unlabelled": {
-    "on_line_unlabelled_predicted_palm": 0.6803418803418804
+    "on_line_unlabelled_predicted_palm": 0.5822981366459627
   },
-  "processing_date": "2026-09-30"
+  "processing_date": "2026-10-01"
 }
