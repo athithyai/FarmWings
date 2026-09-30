@@ -3,86 +3,55 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Farmwings · Hari Pilot</title>
-    <meta name="description" content="Farmwings - Drone Mapping & Plant Intelligence. Hari Pilot viewer." />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2314161a'/%3E%3Cpath d='M16 26c0-8 3-13 10-16-7 0-10 3-10 8 0-5-3-8-10-8 7 3 10 8 10 16z' fill='%234cc38a'/%3E%3C/svg%3E" />
+    <title>FarmWings</title>
+    <meta name="description" content="FarmWings - Drone Mapping & Plant Intelligence. Plant-level detection, identification and health from drone RGB + NDVI." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111513'/%3E%3Cpath d='M16 27c0-8 3-13 10-16-7 0-10 3-10 8 0-5-3-8-10-8 7 3 10 8 10 16z' fill='%238fd46b'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
+    <header class="appbar">
+      <a class="brand" href="#/" aria-label="FarmWings home">
         <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 27c0-8 3-13 10-16-7 0-10 3-10 8 0-5-3-8-10-8 7 3 10 8 10 16z" /></svg>
-        <div>
-          <div class="brand-name">Farmwings</div>
-          <div class="brand-sub">Drone Mapping &amp; Plant Intelligence</div>
-        </div>
-      </div>
-      <div class="project">
-        <div class="project-name">Hari Pilot</div>
-        <div class="project-meta" id="project-meta">Loading…</div>
-      </div>
-      <ol class="lifecycle" id="lifecycle" aria-label="Processing lifecycle"></ol>
+        <span class="brand-name">Farm<b>Wings</b></span>
+      </a>
+      <nav class="nav" aria-label="Screens">
+        <a href="#/" data-route="overview">Overview</a>
+        <a href="#/map" data-route="map">Map</a>
+        <a href="#/plants" data-route="plants">Plants</a>
+        <a href="#/insights" data-route="insights">Insights</a>
+        <a href="#/method" data-route="method">Methodology</a>
+        <a href="#/analyze" data-route="analyze" class="nav-cta">Analyze survey</a>
+      </nav>
+      <label class="survey-switch">
+        <span class="lbl">Survey</span>
+        <select id="survey-select" aria-label="Survey"></select>
+      </label>
     </header>
 
-    <section class="kpis" id="kpis" aria-label="Key figures"></section>
+    <main id="screen" tabindex="-1"></main>
 
-    <main class="workspace">
-      <aside class="panel layers" id="layers-panel" aria-label="Map layers">
-        <div class="panel-head">
-          <h2>Layers</h2>
-          <button class="icon-btn only-mobile" id="layers-toggle" aria-expanded="true" aria-controls="layers-body">▾</button>
-        </div>
-        <div id="layers-body">
-          <div class="layer-group">
-            <div class="group-label">Source imagery</div>
-            <label class="layer"><input type="checkbox" data-layer="rgb" checked /> <span>RGB orthomosaic <small>6 mm</small></span></label>
-            <label class="layer"><input type="checkbox" data-layer="ndvi" /> <span>NDVI <small>2.4 cm</small></span></label>
-            <label class="layer"><input type="checkbox" data-layer="vegmask" /> <span>Vegetation mask <small>NDVI &gt; local soil</small></span></label>
-            <label class="layer"><input type="checkbox" data-layer="lines" /> <span>Planting lines <small>detected drip lines</small></span></label>
-          </div>
-          <div class="layer-group">
-            <div class="group-label">1 · Detection</div>
-            <label class="layer"><input type="checkbox" data-layer="detected" checked /> <span>Detected Plants <small>planted positions</small></span></label>
-            <label class="layer"><input type="checkbox" data-layer="between" /> <span>Between-line vegetation <small>spontaneous</small></span></label>
-          </div>
-          <div class="layer-group">
-            <div class="group-label">2 · Identification <span class="badge exp">Experimental</span></div>
-            <label class="layer"><input type="checkbox" data-layer="ident" /> <span>Plant Identification</span></label>
-            <label class="layer"><input type="checkbox" data-layer="unclassified" /> <span>Unclassified plants</span></label>
-          </div>
-          <div class="layer-group">
-            <div class="group-label">3 · Health <span class="badge exp">Experimental</span></div>
-            <label class="layer"><input type="checkbox" data-layer="health" /> <span>Plant Health</span></label>
-            <label class="layer"><input type="checkbox" data-layer="lowhealth" /> <span>Low-vigour plants</span></label>
-          </div>
-          <div class="legend" id="legend" aria-live="polite"></div>
-        </div>
+    <section id="map-screen" class="map-screen" hidden>
+      <aside class="map-side left" aria-label="Map layers">
+        <div id="layer-panel"></div>
       </aside>
-
       <div class="map-wrap">
-        <div id="map" role="application" aria-label="Farmwings map"></div>
-        <div class="map-tools" role="toolbar" aria-label="Spatial selection">
-          <button class="tool" id="draw-poly" title="Draw a polygon: click to add points, double-click to finish">⬠ Polygon</button>
-          <button class="tool" id="draw-rect" title="Draw a rectangle: click two corners">▭ Rectangle</button>
-          <button class="tool" id="draw-view" title="Select everything in the current view">⛶ View</button>
-          <button class="tool ghost" id="draw-clear" title="Clear selection" disabled>✕ Clear</button>
+        <div id="map" role="application" aria-label="Survey map"></div>
+        <div class="map-tools" role="toolbar" aria-label="Area selection">
+          <button class="tool" id="draw-poly" title="Draw a polygon: click to add points, double-click to finish">Polygon</button>
+          <button class="tool" id="draw-rect" title="Draw a rectangle: click two corners">Rectangle</button>
+          <button class="tool" id="draw-view" title="Select everything in view">Whole view</button>
+          <button class="tool ghost" id="draw-clear" disabled>Clear</button>
         </div>
         <div class="draw-hint" id="draw-hint" hidden></div>
-        <div class="loading" id="loading">Loading plant data…</div>
+        <div class="map-loading" id="map-loading">Loading survey…</div>
       </div>
-
-      <aside class="panel side" aria-label="Details and analytics">
-        <nav class="tabs" role="tablist">
-          <button role="tab" data-tab="plant" aria-selected="false">Plant</button>
-          <button role="tab" data-tab="selection" aria-selected="false">Selection</button>
-          <button role="tab" data-tab="analytics" aria-selected="true">Analytics</button>
-          <button role="tab" data-tab="models" aria-selected="false">Models</button>
-        </nav>
-        <section class="tab-body" data-body="plant" hidden><div id="plant-detail" class="empty">Click any plant on the map to inspect its detection, identification and health results.</div></section>
-        <section class="tab-body" data-body="selection" hidden><div id="selection-detail" class="empty">Use <b>Polygon</b>, <b>Rectangle</b> or <b>View</b> on the map to select an area. Statistics are computed in your browser for the plants inside it.</div></section>
-        <section class="tab-body" data-body="analytics"><div id="analytics"></div></section>
-        <section class="tab-body" data-body="models" hidden><div id="models"></div></section>
+      <aside class="map-side right" aria-label="Details">
+        <div id="map-detail"></div>
       </aside>
-    </main>
+    </section>
+
     <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
     <script type="module" src="./src/main.js"></script>
   </body>

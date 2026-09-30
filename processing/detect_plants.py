@@ -747,6 +747,9 @@ def preview(gdf, path, window=(4245, 2448, 1024)):
     from rasterio.windows import Window
     c0, r0, s = window
     with rasterio.open(OUT / "aligned" / "rgb_aligned.tif") as d:
+        s = min(s, d.width, d.height)            # small surveys: fit the window to the raster
+        if c0 + s > d.width or r0 + s > d.height:
+            c0, r0 = (d.width - s) // 2, (d.height - s) // 2
         img = np.moveaxis(d.read([1, 2, 3], window=Window(c0, r0, s, s)), 0, -1)
         x0, y0 = d.transform * (c0, r0)
         x1, y1 = d.transform * (c0 + s, r0 + s)

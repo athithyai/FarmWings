@@ -86,6 +86,10 @@ def main() -> dict:
     media.mkdir(parents=True, exist_ok=True)
     for old in media.glob("*.webp"):
         old.unlink()
+    if not (OUT / "cache" / "crops_1p2m_224.npy").exists():   # identification was skipped
+        from common import DEFAULT_INPUT
+        from identify_plants import load_crops
+        load_crops(gpd.read_file(OUT / "detection" / "plants.geojson"), DEFAULT_INPUT)
     crops = np.load(OUT / "cache" / "crops_1p2m_224.npy", mmap_mode="r")
     cache_ids = list(np.load(OUT / "cache" / "crops_ids.npy", allow_pickle=True))
     pos = {p: i for i, p in enumerate(cache_ids)}
@@ -102,7 +106,8 @@ def main() -> dict:
         p = OUT / src
         if not p.exists():
             continue
-        im = Image.open(p).convert("RGB")
+        im = Image.open(p)
+        im = im.convert("RGBA") if name.startswith("field_") else im.convert("RGB")
         if max(im.size) > 1800:
             im.thumbnail((1800, 1800))
         b = io.BytesIO()

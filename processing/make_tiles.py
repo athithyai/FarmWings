@@ -214,12 +214,15 @@ def main(input_dir=DEFAULT_INPUT, rgb_zmax=23, zmax=22, zmin=16) -> dict:
     tx0, ty0, W, H, tr = g
     rgba = np.zeros((H, W, 4), np.uint8)
     with rasterio.open(rgb_path) as src:
-        for b in range(1, 5):
+        nb = 4 if src.count >= 4 else 3
+        for b in range(1, nb + 1):
             band = np.zeros((H, W), np.uint8)
             reproject(rasterio.band(src, b), band, dst_transform=tr, dst_crs="EPSG:3857",
                       resampling=Resampling.average, num_threads=4)
             rgba[..., b - 1] = band
             print(f"  band {b} reprojected")
+        if nb == 3:   # no alpha band: pixels with any colour are valid
+            rgba[..., 3] = np.where(rgba[..., :3].max(-1) > 0, 255, 0)
     p = Packer("rgb")
     pyramid(rgba, tx0, ty0, rgb_zmax, zmin, rgb_rgba, rgb_down, p, 0)
     index["layers"]["rgb"] = p.write(zmin, rgb_zmax, bll)

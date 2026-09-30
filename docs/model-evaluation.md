@@ -1,134 +1,103 @@
 # Model evaluation and selection
 
-Every candidate was tested on the Hari imagery itself: on representative tiles before
-full-raster processing, and with spatial cross-validation where labels exist. Trial
-scripts are in `processing/experiments/`, with outputs in `processing_outputs/experiments/`.
+Every candidate was tested on the Pilot imagery itself: on representative tiles before
+full-raster processing, and with spatial cross-validation or visual audits where no labels
+exist. Trial scripts are in `processing/experiments/`.
 
-The scene: 0.2–0.9 m seedlings in planting pits at **6 mm RGB / 2.4 cm NDVI**, on bright
-desert sand, along drip lines 2 m apart. This scale and domain rule out most published
-tree and palm models.
+The scene: *Rhanterium epapposum* saplings, mostly 10–30 cm across, in planting pits along
+drip lines 2 m apart, on bright desert sand with spontaneous annual vegetation between rows.
+Imagery: RGB 6 mm, NDVI 2.4 cm. This scale rules out most published tree and palm models.
 
-## 1. Plant detection / segmentation
+## 1. Plant detection
 
-| Candidate | What it is | Test on 3 × 24 m tiles | Decision |
-|---|---|---|---|
-| **DeepForest** (`weecology/deepforest-tree`, RetinaNet) | pretrained tree-crown detector (NEON, ~10 cm) | **0 detections** at native 2.4 cm and resampled 10 cm, even at score > 0.1 | rejected: trained on multi-metre tree crowns |
-| detectree2 (Mask R-CNN) | tropical canopy crowns | not run: needs detectron2 (fragile on Windows), same crown-scale mismatch | rejected on relevance |
-| YOLO/RetinaNet palm detectors (e.g. `ckn3/palm-ds-sp`, UAE Al Ain palm dataset) | mature date / oil palm crowns, 3–10 m | not run: no public weights for seedlings, wrong object scale | rejected on relevance |
-| **SAM 2.1 automatic mask generation** (hiera-large) | promptless instance masks | 191–226 masks per tile, mostly soil patches, pit halos and drip-line fragments; unselective | rejected as a detector |
-| GroundingDINO + SAM | text-prompted boxes | cached locally but not pursued; a text prompt ("plant") has no advantage over a physically grounded RGB+NDVI candidate at this scale | not needed |
-| **RGB+NDVI candidates → SAM 2.1 point+box prompts** | chosen | 193–253 objects per tile, masks follow pits and plants | **selected** |
-
-**Chosen method** (`detect_plants.py`):
-1. A "plant-ness" surface: robust z of RGB darkness (drip lines erased by a 7 px grey
-   closing) plus robust z of NDVI anomaly, both relative to local soil (σ ≈ 0.95 m).
-2. Local maxima become candidates.
-3. SAM 2.1 hiera-large is prompted with each point plus a 1.1 m box.
-4. Each mask is trimmed to its plant/pit core. Shape filters and overlap suppression follow.
-
-**Planting lines** (`detect_lines.py`): black top-hat, dominant orientation, rotated column
-profiles per 9.4 m block, then tracking. This yields 112 lines at 1.998 m spacing. A
-per-location **visibility score** (line vs adjacent soil) decides whether a drip line is
-actually visible. A detection is a *planted position* only if it sits within 0.31 m of a
-line **and** that line is locally visible. This follows the project instruction that the
-visible guide lines are the planting lines. Rows of pits or vegetation where no drip line
-is visible are not planting lines. Checked visually on crops in every score band: every
-plant scoring ≥ 5 has a visible drip line through it; below 5 there is none, and that band
-includes white plastic debris.
-
-Result: 6 654 objects, of which **5 708 are planted positions** and 946 are between-line
-vegetation. 100 objects were dropped (no drip line and no vegetation signal). Median crown
-area is 0.18 m², and 92 % have a detected plant/pit core.
-
-`detection_confidence` = √(SAM predicted IoU × candidate strength). It is a heuristic
-score, **not a calibrated probability**, because there are no annotated plants to
-calibrate against.
-
-## 2. Plant Identification Model
-
-**Question:** what plant is this? The project declared the planted species as palm.
-
-**Candidates considered**
-* Pl@ntNet and other close-up plant-photo classifiers: rejected on domain (ground-level
-  photos of leaves and flowers, not top-down 6 mm crowns).
-* Palm detectors / classifiers: trained on mature crowns; no seedling weights.
-* **CLIP ViT-L/14 zero-shot** ("aerial photo of a young palm seedling planted in a pit" vs
-  "small wild weeds and grass on sand"): tested.
-* **Frozen embeddings + small classifier** (Option B): DINOv2-base (natural images),
-  **DINOv3 ViT-L/16 SAT-493M** (satellite-pretrained remote-sensing foundation model),
-  CLIP ViT-L/14 image tower. All are cached locally and run on the RTX 5070.
-* RemoteCLIP, TerraMind and other EO foundation models: designed for 0.3–10 m satellite
-  scenes and multispectral stacks, not 6 mm single-plant crops. The satellite-pretrained
-  DINOv3 was tested as the representative of this family.
-
-**Labels.** There are no annotated plants, so labels come from the planting design, which
-is independent of plant appearance. Planted stock = on a visible drip line with a clear
-core and a strong candidate (5 123). Spontaneous vegetation = between lines with a
-vegetation signal (946). **Position is not a model input.**
-
-The first trial exposed a leak. Raw crops show the drip line through every planted plant,
-so a model could learn "line = planted". To remove it, crown crops inpaint the drip line
-(oriented line-kernel opening) and replace everything outside the dilated crown with sand
-colour.
-
-**Spatial 5-fold cross-validation** (25 m blocks, final plant set):
-
-| Inputs | ROC-AUC | Balanced accuracy |
+| Candidate | Result on test tiles | Decision |
 |---|---|---|
-| CLIP ViT-L/14 zero-shot | 0.770 | 0.564 |
-| NDVI + RGB indices + geometry only | 0.981 | 0.943 |
-| DINOv2-base, raw crop (+ tabular) | 0.995 | 0.975 |
-| CLIP ViT-L/14, raw crop (+ tabular) | 0.994 | 0.973 |
-| DINOv3 SAT-493M, raw crop (+ tabular) | 0.990 | 0.967 |
-| DINOv2-base, crown crop + tabular | 0.992 | 0.974 |
-| CLIP ViT-L/14, crown crop + tabular | 0.991 | 0.970 |
-| **DINOv3 SAT-493M, crown crop + tabular** | **0.993** | **0.980** |
+| DeepForest (`weecology/deepforest-tree`, RetinaNet, ~10 cm tree crowns) | **0 detections** at 2.4 cm and 10 cm (score > 0.1) | rejected: wrong object scale |
+| detectree2, YOLO / RetinaNet palm detectors | not run: trained on multi-metre crowns, no sapling weights | rejected on relevance |
+| SAM 2.1 automatic mask generation | ~200 unselective masks per 24 m tile (soil, halos, pipe) | rejected as a detector |
+| **RGB + NDVI candidates → SAM 2.1 prompts** | outlines follow pits and saplings | **selected** |
 
-Raw-crop scores are optimistic because of the drip-line leak. **Selected: DINOv3 SAT-493M
-crown-crop embedding + NDVI/RGB/geometry → logistic regression.** It is the best leak-free
-configuration. Labelled plants get their out-of-fold probability as confidence; below 0.7
-a plant is **Unclassified**.
+**Final method** (`detect_plants.py`, `detect_lines.py`):
+1. **Drip lines**: black top-hat of brightness, dominant orientation, rotated column profiles
+   per 9.4 m block, tracking. Pilot: 112 lines, 1.998 m spacing. A per-location visibility
+   score (line vs adjacent soil) keeps only *visible* drip lines as planting lines.
+2. **Candidates**: robust z of RGB darkness (drip lines erased by grey closing) + robust z of
+   NDVI above local soil; local maxima.
+3. **SAM 2.1 hiera-large** outlines each candidate on a **1.18 cm** RGB grid (fine saplings),
+   trimmed to plant evidence; a large mask with no plant core is rejected.
+4. **NDVI recall pass**: green NDVI patches no object covers (≥ 0.02 m² on a line, ≥ 0.05 m²
+   between lines) get their own SAM prompt, or their NDVI outline.
+5. **Planting positions**: per line, a dynamic-programming fit of the planting rhythm
+   (consecutive plants a whole number of ~2 m spacings apart, ±0.3) picks one object per
+   planting spot using its evidence (confidence, NDVI, closeness to the line). Touching
+   fragments merge; vegetation between spots is kept as between-line vegetation; drip-pipe
+   segments (dark, elongated along the line, not green) are rejected.
+6. **Empty spots**: gaps of 1.5–4.5 spacings between planted plants are reported as expected
+   positions without a plant, unless a vegetated object sits right there.
 
-**Output:** Palm (planted) 5 458 · Other vegetation 1 085 · Unclassified 111 (98.3 %
-identified). On planting lines: 5 436 palm, 177 other vegetation (weeds or dead material
-in pits), 95 unclassified.
+**Result (Pilot):** 5,662 planted saplings, 57 empty spots (5,719 planting spots), 2,620
+between-line objects.
 
-**What this does and does not show.** The model separates planted stock from spontaneous
-vegetation reliably. It cannot confirm the species "palm": at 0.2–0.9 m crowns the
-seedlings are not distinguishable to species from above, and no labelled species data
-exists. The class name carries the project's declared species. See `limitations.md` for
-the labels needed to make this a true species model.
+**Checks.** No field-verified plant list exists. Two independent checks were used:
+* The **project installation record** (5,684 planting points, not ground truth, used as a
+  reference only): 99.1% of FarmWings plants lie within 0.6 m of a recorded point, 98.7% of
+  recorded points have a FarmWings plant, median offset 5.5 cm. The rhythm settings gave the
+  same result across a sensitivity sweep (F1 0.987–0.990), so the rule is not tuned to one
+  setting.
+* **Visual audits** of 6 mm crops where the two disagree: about half of the recorded points
+  FarmWings leaves empty show no living plant, and most points the reference marks "not
+  detected" are planting pits with no green canopy, which FarmWings reports as such.
 
-## 3. Plant Health Model
+`detection_confidence` = √(SAM predicted IoU × candidate strength): a heuristic score, not a
+calibrated probability.
 
-**Question:** what is the vegetation condition of this plant?
+## 2. Plant identification *(experimental)*
 
-**Candidates considered**
-* Published UAV health / stress classifiers (date-palm leaf-disease CNNs, NDVI + fully
-  connected crop-rust models, RGB→NDVI regressors): trained on other crops, mature trees,
-  or close-range leaf imagery. None has public weights for desert seedlings at this
-  resolution, and none is validated here. Rejected, which leads to **Approach B**.
+**Candidates:** Pl@ntNet-style close-up classifiers (rejected: ground-level photos), palm
+detectors (no sapling weights), CLIP zero-shot, and frozen embeddings + a small classifier
+(DINOv2-base, **DINOv3 ViT-L/16 SAT-493M**, CLIP ViT-L/14).
 
-**Approach B: relative multimodal vigour model** (`assess_health.py`). Six indicators,
-each robust-z scored (median / MAD over all detected plants) and then weighted:
+**Labels without hand annotation:** planted stock = on a visible drip line with a clear core;
+other vegetation = between lines with an NDVI signal. Position is not a model input, and the
+drip line is inpainted out of every crop so the model cannot learn "line = planted".
 
-| Indicator | Weight | Why |
-|---|---|---|
-| NDVI contrast = crown median − soil-ring median (0.3–0.8 m ring) | 0.30 | removes soil / moisture variation across the field |
-| crown p90 NDVI | 0.20 | greenest tissue; crowns include pit soil |
-| crown median NDVI | 0.15 | overall greenness |
-| VARI (RGB, median) | 0.15 | independent RGB greenness |
-| green fraction (ExG > 0.02) | 0.10 | share of crown that is green |
-| log green area | 0.10 | vigour scales with living canopy size |
+| Inputs (spatial 5-fold CV, 25 m blocks) | ROC-AUC |
+|---|---|
+| CLIP ViT-L/14 zero-shot | 0.770 |
+| NDVI + RGB indices + geometry only | 0.981 |
+| DINOv2-base crown crop + tabular | 0.992 |
+| CLIP ViT-L/14 crown crop + tabular | 0.991 |
+| **DINOv3 SAT-493M crown crop + tabular** | **0.993** (final plant set: 0.991) |
 
-The composite is re-standardised; `health_score = Φ(z)`. The classes are robust-z bands
-(≥ 1.5 / 0.5 / −0.5 / −1.5), not arbitrary NDVI cut-offs and not forced quintiles.
+Selected: DINOv3 SAT-493M crown embedding + NDVI/RGB/geometry → logistic regression. Below
+0.7 confidence a plant is Unclassified. When a survey has too few weak labels (no visible
+drip lines), the Pilot-trained reference model (`models/identification_reference.joblib`) is
+used and the summary says so. The species name comes from the installation record; the
+imagery cannot confirm species at sapling size.
 
-**Internal consistency:** the NDVI-only sub-score and the RGB-only sub-score (two
-independent sensors) agree at Spearman ρ = 0.76.
+## 3. Plant health *(experimental)*
 
-**Planted positions:** Very high 621 · High 1 367 · Moderate 2 021 · Low 1 439 ·
-Very low 260. Mean crown NDVI is 0.254, against a soil median of 0.099.
+No validated pretrained health model exists for young desert saplings at this resolution
+(published models target date-palm leaves, crop rust, or close-range leaf photos), and there
+are no field health labels. The health model is therefore **unsupervised**:
 
-*Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a
-laboratory disease diagnosis.*
+* **Green canopy** per plant = pixels with NDVI ≥ 0.20 above the plant's own soil ring
+  (0.3–0.8 m). A threshold of 0.08 also counted damp, mulched pit soil; 0.20 was checked on
+  6 mm crops (no-canopy plants show dry brown material only).
+* **Condition groups**: Gaussian mixture (K = 3–5 by BIC) on the DINOv3 crown embedding (PCA
+  16) plus six NDVI/RGB indicators, fitted on **planted saplings only**. Groups are ordered by
+  their indicator profile and named Very good … Very poor.
+
+| Group (Pilot) | Plants | Median NDVI | Green canopy | Without green canopy |
+|---|---|---|---|---|
+| Very good | 871 | 0.37 | 1,047 cm² | 0% |
+| Good | 1,507 | 0.26 | 724 cm² | 0% |
+| Fair | 779 | 0.23 | 323 cm² | 11% |
+| Poor | 1,425 | 0.21 | 423 cm² | 2% |
+| Very poor | 1,080 | 0.17 | 56 cm² | 44% |
+
+Stability on 80% resamples: ARI 0.82. Agreement with a transparent vigour index (weighted
+robust z of the same indicators): Spearman ρ 0.92.
+
+*Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a laboratory
+disease diagnosis.*

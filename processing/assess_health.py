@@ -46,6 +46,7 @@ CANOPY_DNDVI = 0.20          # canopy pixel: NDVI at least this much above the p
 LIVING_MIN_CANOPY_M2 = 0.004 # ~7 cm across: smallest canopy counted as a living plant
 PIXEL_AREA_M2 = 0.0236 ** 2
 K_RANGE = range(3, 6)
+MIN_PER_GROUP = 15   # at least this many plants per condition group; fewer plants -> fewer groups
 PCA_DIMS = 16
 SEED = 0
 
@@ -117,7 +118,7 @@ def fit_groups(Zi: np.ndarray, emb: np.ndarray):
     from sklearn.mixture import GaussianMixture
     from sklearn.preprocessing import StandardScaler
     E = StandardScaler().fit_transform(emb)
-    pca = PCA(n_components=PCA_DIMS, random_state=SEED).fit(E)
+    pca = PCA(n_components=min(PCA_DIMS, len(E) - 1, E.shape[1]), random_state=SEED).fit(E)
     Ep = pca.transform(E)
     Ep = Ep / Ep[:, 0].std()                         # keep the PCA spectrum, unit scale on PC1
     # equal weight for the two blocks: each block's total variance scaled to 1
@@ -126,7 +127,7 @@ def fit_groups(Zi: np.ndarray, emb: np.ndarray):
     X = np.c_[Ib, Eb]
     bic = {}
     models = {}
-    for k in K_RANGE:
+    for k in [k for k in K_RANGE if len(X) >= k * MIN_PER_GROUP] or [3]:
         g = GaussianMixture(k, covariance_type="full", n_init=5, random_state=SEED, reg_covar=1e-4).fit(X)
         bic[k] = float(g.bic(X))
         models[k] = g
@@ -171,6 +172,9 @@ def main(input_dir=DEFAULT_INPUT) -> dict:
     ndvi_sub = rz(sum(Z[k] for k in NDVI_SIDE).values)
     rgb_sub = rz(sum(Z[k] for k in RGB_SIDE).values)
 
+    if planted.sum() < 3 * MIN_PER_GROUP:
+        raise SystemExit(f"Plant health needs at least {3 * MIN_PER_GROUP} planted saplings; this survey has "
+                         f"{int(planted.sum())}. Re-run with health switched off, or a larger area.")
     print("crown embeddings (DINOv3-SAT) ...")
     emb, crops = crown_embeddings(gdf, input_dir)
     gmm, X, k, bic, pca_var = fit_groups(Z[list(WEIGHTS)].values[planted], emb[planted])
@@ -298,7 +302,9 @@ def preview(res, names, path, window=(4245, 2448, 1024)):
     from rasterio.windows import Window
     c0, r0, s = window
     with rasterio.open(OUT / "aligned" / "rgb_aligned.tif") as d:
-        c0, r0 = min(c0, max(d.width - s, 0)), min(r0, max(d.height - s, 0))
+        s = min(s, d.width, d.height)            # small surveys: fit the window to the raster
+        if c0 + s > d.width or r0 + s > d.height:
+            c0, r0 = (d.width - s) // 2, (d.height - s) // 2
         img = np.moveaxis(d.read([1, 2, 3], window=Window(c0, r0, s, s)), 0, -1)
         x0, y0 = d.transform * (c0, r0)
         x1, y1 = d.transform * (c0 + s, r0 + s)

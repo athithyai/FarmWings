@@ -69,6 +69,7 @@ def main():
     ap.add_argument("--species", help='declared planted species (default "Palm")')
     ap.add_argument("--from", dest="start", choices=STAGES, default=STAGES[0])
     ap.add_argument("--only", choices=STAGES)
+    ap.add_argument("--skip", default="", help="comma-separated optional stages to skip: identify,health")
     a = ap.parse_args()
     # settings must be in the environment before common.py is imported by any stage
     for flag, env in [(a.input, "FARMWINGS_INPUT"), (a.out, "FARMWINGS_OUT"), (a.web, "FARMWINGS_WEB"),
@@ -79,6 +80,10 @@ def main():
     from common import DEFAULT_INPUT  # noqa: E402
 
     stages = [a.only] if a.only else STAGES[STAGES.index(a.start):]
+    skip = {x.strip() for x in a.skip.split(",") if x.strip()} & {"identify", "health"}
+    for x in skip:   # a skipped model must not leave an older run's results behind
+        os.environ[f"FARMWINGS_SKIP_{x.upper()}"] = "1"
+    stages = [x for x in stages if x not in skip]
     for s in stages:
         t = time.time()
         print(f"\n=== {s} ===", flush=True)

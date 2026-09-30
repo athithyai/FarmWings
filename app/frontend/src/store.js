@@ -1,7 +1,12 @@
 // Survey data: the bundled Pilot survey plus any survey processed by a FarmWings compute
 // server. Every screen reads the *current* survey from here.
 
-const BUNDLED = { id: "pilot", name: "Pilot", base: new URL("data/", document.baseURI).href, source: "bundled" };
+// Surveys that ship with the app (processed by the same pipeline, published as static files)
+export const BUNDLED_SURVEYS = [
+  { id: "pilot", name: "Pilot", base: new URL("data/", document.baseURI).href, source: "bundled" },
+  { id: "sample", name: "Sample survey (40 m)", base: new URL("data/surveys/sample/", document.baseURI).href, source: "bundled" },
+];
+const BUNDLED = BUNDLED_SURVEYS[0];
 const listeners = new Set();
 const registry = new Map(); // id -> loaded survey
 let current = null;
@@ -37,9 +42,10 @@ export const VIGOUR = ["Very high vigour", "High vigour", "Moderate vigour", "Lo
 
 async function load(desc) {
   const b = desc.base;
-  const [summary, plants, lines, tiles, media, figures] = await Promise.all([
+  const [summary, plants, lines, tiles, media, figures, gaps] = await Promise.all([
     getJson(b + "summary.json"), getJson(b + "plants.json"), getJson(b + "lines.json"),
     getJson(b + "tiles/index.json"), getJson(b + "media/index.json", true), getJson(b + "figures/index.json", true),
+    getJson(b + "gaps.json", true),
   ]);
   const list = plants.features.map((f) => f.properties);
   const byId = new Map(list.map((p) => [p.plant_id, p]));
@@ -50,6 +56,7 @@ async function load(desc) {
   const planted = summary.stats.planted_class;
   const s = {
     ...desc, summary, plants, lines, tiles, media, figures, list, byId, geomById, mediaPos,
+    gaps: gaps || { type: "FeatureCollection", features: [] },
     idClasses: [
       { key: planted, color: "#3987e5" },
       { key: "Other vegetation", color: "#d95926" },
@@ -91,6 +98,8 @@ export async function useSurvey(desc) {
 export async function initialSurvey() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem("farmwings.survey") || "null"); } catch { /* ignore */ }
+  const known = BUNDLED_SURVEYS.find((b) => b.id === saved?.id);
+  if (known) return useSurvey(known);
   if (saved && saved.id !== "pilot") {
     try { return await useSurvey(saved); } catch { /* server gone: fall back to the Pilot */ }
   }
@@ -100,7 +109,28 @@ export async function initialSurvey() {
 export const bundled = BUNDLED;
 
 export function jobSurvey(server, job) {
-  return { id: `job:${job.id}`, name: job.name, base: `${server}/api/jobs/${job.id}/data/`, source: "server", job };
+  // signed in: the session goes in the path so images and map tiles (no headers) load too
+  const t = authToken();
+  const base = t ? `${server}/api/s/${t}/jobs/${job.id}/data/` : `${server}/api/jobs/${job.id}/data/`;
+  return { id: `job:${job.id}`, name: job.name, base, source: "server", job };
+}
+
+// ---- Google sign-in session with the connected compute node (per browser tab)
+const AUTH_KEY = "farmwings.auth";
+export function authSession() {
+  try {
+    const a = JSON.parse(sessionStorage.getItem(AUTH_KEY) || "null");
+    return a && a.exp * 1000 > Date.now() && a.server === serverUrl() ? a : null;
+  } catch { return null; }
+}
+export function authToken() { return authSession()?.token || null; }
+export function setAuth(a) {
+  try { a ? sessionStorage.setItem(AUTH_KEY, JSON.stringify({ ...a, server: serverUrl() })) : sessionStorage.removeItem(AUTH_KEY); } catch { /* ignore */ }
+}
+export function api(path, opts = {}) {
+  const t = authToken();
+  const headers = { ...(opts.headers || {}), ...(t ? { Authorization: `Bearer ${t}` } : {}) };
+  return fetch(`${serverUrl()}${path}`, { ...opts, headers });
 }
 
 // Thumbnail sprite style for a plant (RGB or NDVI atlas)

@@ -47,13 +47,14 @@ def tophat(rgb: np.ndarray, valid: np.ndarray) -> np.ndarray:
 
 def dominant_angle(T: np.ndarray) -> float:
     H, W = T.shape
-    s = 3000
+    s = min(3000, H, W) // 2 * 2                 # central square; small surveys use the whole image
     crop = T[H // 2 - s // 2:H // 2 + s // 2, W // 2 - s // 2:W // 2 + s // 2]
+    lo, hi = int(s * 0.233), int(s * 0.767)      # inner window stays inside the rotated square
 
     def score(a):
         M = cv2.getRotationMatrix2D((s / 2, s / 2), a, 1)
         R = cv2.warpAffine(crop, M, (s, s))
-        return R[700:2300, 700:2300].mean(0).var()
+        return R[lo:hi, lo:hi].mean(0).var()
 
     coarse = np.arange(-90, 90, 1.0)
     best = coarse[int(np.argmax([score(a) for a in coarse]))]

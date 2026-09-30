@@ -108,7 +108,7 @@ def extract_crops(gdf, rgb_path, size_m=1.2, out_px=224, band_rows=2048):
             r0 = max(rows[order[start]] - half, 0)
             r1 = min(r0 + band_rows, d.height)
             members = [k for k in order[start:] if rows[k] + half <= r1 or r1 == d.height]
-            members = [k for k in members if rows[k] - half >= r0]
+            members = [k for k in members if rows[k] - half >= r0 or r0 == 0]
             if not members:
                 band_rows *= 2
                 continue

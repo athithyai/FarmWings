@@ -1,70 +1,193 @@
-# Farmwings — Drone Mapping & Plant Intelligence
+<div align="center">
 
-**Hari Pilot.** Plant-level results from one RGB orthomosaic (6 mm) and one NDVI raster
-(2.4 cm) of a drip-irrigated planting block (2.66 ha, EPSG:32638).
+# 🌱 FarmWings
 
-```
-RGB + NDVI → align & co-register → drip-line detection → plant detection (SAM 2.1)
-          → Plant Identification Model → Plant Health Model → combined dataset → map viewer
-```
+**Drone Mapping & Plant Intelligence**
 
-| Result | Value |
+Every sapling in a planting block, found from drone imagery and assessed one by one:
+*where it is, what it is, and how it is doing.*
+
+**[Open the live app →](https://athithyai.github.io/FarmWings/)**
+
+</div>
+
+![FarmWings overview](docs/assets/app_overview.png)
+
+FarmWings turns a drone **RGB orthomosaic** and an **NDVI raster** into a plant-by-plant inventory. It runs three
+separate models (detection, identification and health) and presents the results as a map-first web app.
+New surveys are imported in the app and processed on a GPU **compute node** (your own PC or a cloud GPU).
+
+---
+
+## The Pilot at a glance
+
+A 2.66 ha drip-irrigated revegetation block planted with *Rhanterium epapposum*, flown at **6 mm** (RGB) and **2.4 cm** (NDVI).
+
+| | |
 |---|---|
-| Planted positions (on visible drip lines) | **5 708** on 112 lines, 2.0 m spacing |
-| Between-line vegetation | 946 |
-| Identified | 98 % — Palm (planted) 5 458 · Other vegetation 1 085 · Unclassified 111 |
-| Identification model | DINOv3 ViT-L SAT-493M crown embedding + NDVI/RGB → logistic regression; spatial-CV AUC 0.993 *(experimental)* |
-| Health model | relative multimodal vigour index (NDVI contrast, NDVI, VARI, green cover) *(experimental)* |
-| High / low vigour (planted) | 35 % high or very high · 1 699 low or very low |
+| **Planting spots** (from the planting rhythm of 112 drip lines, 2.0 m apart) | **5,719** |
+| **Plants located** | **5,662** (99.0%) · 57 spots empty |
+| **Green living canopy** | **5,075** (89.6% of located plants) |
+| **No green canopy** (dry, dormant or dead: field check) | **587** |
+| **Identified as *Rhanterium epapposum*** *(experimental)* | **5,265** (93.0%) |
+| **Health** *(experimental, 5 unsupervised condition groups)* | Very good 871 · Good 1,507 · Fair 779 · Poor 1,425 · Very poor 1,080 |
 
-Three separate stages, three separate map layers:
-1. **Detection**: where the plants are (`detection_confidence`, area, line).
-2. **Identification**: what plant it is (`plant_class`, `identification_confidence`).
-3. **Health**: its vegetation condition (`health_class`, `health_score`, NDVI / RGB indicators).
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/app_plant.png" alt="Plant page"/><br/><sub><b>Plant page</b>: drone crops with the detected outline, and all three model results</sub></td>
+<td width="50%"><img src="docs/assets/app_insights.png" alt="Insights"/><br/><sub><b>Insights</b>: condition along every drip line, lines needing attention</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/assets/app_plants.png" alt="Plant inventory"/><br/><sub><b>Plants</b>: searchable inventory with a thumbnail per plant, CSV export</sub></td>
+<td width="50%"><img src="docs/assets/app_analyze.png" alt="Analyze a survey"/><br/><sub><b>Analyze</b>: connect compute, upload RGB + NDVI, choose operations, run</sub></td>
+</tr>
+</table>
 
-*Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a
-laboratory disease diagnosis.*
+---
 
-## Viewer
+## How it works
 
-MapLibre, map-first: RGB, NDVI and vegetation-mask imagery; detected plants, planting
-lines, identification and health layers; a plant detail panel; polygon, rectangle or view
-selection with in-browser statistics; field analytics; model provenance.
-
-```
-npm install
-npm run build
-npm run preview        # http://localhost:4173
-```
-
-**Deployment is private by decision.** The imagery is client project data. The GitHub
-repository is private; `.github/workflows/deploy-pages.yml` builds on every push but only
-publishes to GitHub Pages if the repository is made public. The shareable build is
-published as a private link controlled by the owner.
-
-## Processing
-
-```
-python processing/run_pipeline.py --input "C:\Users\great\Documents\Lab\Hari\Pilot"
+```mermaid
+flowchart LR
+    A[RGB orthomosaic<br/>6 mm] --> C[Align + co-register<br/>NDVI to RGB]
+    B[NDVI raster<br/>2.4 cm] --> C
+    C --> D[Drip-line<br/>detection]
+    D --> E[Plant detection<br/>SAM 2.1 on 1.2 cm]
+    E --> F[Planting rhythm<br/>one plant per spot]
+    F --> G[Identification<br/>DINOv3-SAT + NDVI]
+    F --> H[Health<br/>canopy + unsupervised groups]
+    G --> I[FarmWings app]
+    H --> I
+    F --> I
 ```
 
-See [docs/processing.md](docs/processing.md). Dependencies: [requirements.txt](requirements.txt)
-(GPU recommended for SAM 2.1 and the embedding models).
+| Stage | Model / method | Output |
+|---|---|---|
+| **1 · Detection** | RGB darkness + NDVI candidates → **SAM 2.1** (hiera-large) outlines on 1.2 cm imagery; an NDVI recall pass catches green saplings the first pass missed; objects are assigned to visible drip lines and a **planting-rhythm fit** keeps one plant per planting spot | plant outline, confidence, planting line, empty spots |
+| **2 · Identification** *(experimental)* | Crown crop (drip line removed) → **DINOv3 ViT-L SAT-493M** embedding + NDVI / colour / shape → logistic regression, trained on labels from the planting layout | species vs other vegetation, confidence |
+| **3 · Health** *(experimental)* | Green canopy = NDVI ≥ 0.20 above the plant's own soil; **Gaussian mixture** on crown embedding + NDVI indicators → condition groups named by their measured profile | canopy area, condition group, score |
 
-## Documentation
+Every result carries the model and version that produced it. Details: [docs/model-evaluation.md](docs/model-evaluation.md).
 
-* [docs/data-inventory.md](docs/data-inventory.md): files, CRS, grids, NDVI range, alignment
-* [docs/model-evaluation.md](docs/model-evaluation.md): models tested, rejected and chosen, with scores
-* [docs/processing.md](docs/processing.md): pipeline stages and outputs
-* [docs/limitations.md](docs/limitations.md): what the results do and do not mean
-* [docs/architecture-future.md](docs/architecture-future.md): path to API, storage, PostGIS, orchestration
+### How accurate is it?
 
-## Layout
+There is no field-verified plant list, so accuracy was checked in two independent ways:
+
+- **Project installation record** (5,684 planting points, used as a *reference*, not as ground truth):
+  **99.1%** of FarmWings plants sit on a recorded spot, **98.7%** of recorded spots have a FarmWings plant,
+  median position difference **5.5 cm**.
+- **Visual audits** of the 6 mm imagery wherever the two disagree. About half of the spots the reference
+  marks as planted but FarmWings leaves empty show no living plant at all. And where the reference marks
+  a plant "not detected", FarmWings usually finds the planting pit and reports it as *no green canopy*.
+
+Identification: spatial cross-validation AUC **0.991**. Health: groups stable on resampling (ARI **0.82**) and
+consistent with a transparent NDVI/RGB vigour index (ρ **0.92**).
+*Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a laboratory disease diagnosis.*
+
+---
+
+## Use it
+
+### 1. Explore the results
+
+Open **[the live app](https://athithyai.github.io/FarmWings/)**. It ships with two processed surveys (switch at the top right):
+the **Pilot** block and a **Sample survey** (40 m × 40 m).
+
+### 2. Process your own survey
+
+1. **Start a compute node** on a machine with an NVIDIA GPU (see requirements below):
+   ```bash
+   python server/app.py                       # http://127.0.0.1:8765
+   ```
+2. In the app, go to **Analyze survey**, connect to the node, add the **RGB** and **NDVI** GeoTIFFs, choose the
+   operations (detection is always on; identification and health are optional) and press **Upload and run**.
+3. Follow the progress per stage; when it is ready, **Open results**. The survey appears in every screen.
+
+No data at hand? Download the sample survey from the Analyze screen (`sample_rgb.tif`, `sample_ndvi.tif`).
+
+### 3. Or run the pipeline from the command line
+
+```bash
+python processing/run_pipeline.py --input path/to/survey_folder --project "Block 198" --species "Rhanterium epapposum"
+python processing/run_pipeline.py --only health          # re-run one stage
+python processing/run_pipeline.py --skip identify,health # detection only
+```
+
+---
+
+## Connecting a data source
+
+| Source | How FarmWings reads it |
+|---|---|
+| **Drone photogrammetry** (Pix4D, DJI Terra, Agisoft Metashape, DroneDeploy exports) | Export the RGB orthomosaic and the NDVI (or multispectral index) raster as **GeoTIFF**, same projected CRS (e.g. UTM). Upload both in **Analyze survey**. |
+| **Local / network folder** | Point the CLI at a folder with one RGB `.tif` and one `*ndvi*.tif`: `run_pipeline.py --input <folder>`. |
+| **Cloud storage** (S3 · Azure Blob · GCS) | Sync the survey folder to the compute node, then run: `aws s3 sync s3://bucket/survey ./in` · `azcopy sync <url> ./in` · `gsutil rsync -r gs://bucket/survey ./in`. Results in `web/` can be synced back to the bucket and served statically. |
+| **Mapping platforms / APIs** (future) | A webhook on "processing finished" calls the compute node's `POST /api/jobs` with the file URLs. See [docs/architecture-future.md](docs/architecture-future.md). |
+
+Input checks happen on upload: both files must be readable GeoTIFFs in the **same metric CRS**; RGB needs 3–4 bands and NDVI 1 band.
+
+---
+
+## Cloud requirements and costs
+
+| Component | What it does | Recommended option | Size / time | Cost estimate |
+|---|---|---|---|---|
+| **Web app** | The FarmWings app (static) | GitHub Pages | ~60 MB per survey | **Free** |
+| **Storage** | RGB + NDVI GeoTIFFs and results | Amazon S3 Standard · Azure Blob Hot | ~1.5 GB per 2.7 ha block | $0.018–0.023 / GB-month → **~$0.04 per block per month** |
+| **GPU compute** | Full pipeline (SAM 2.1, DINOv3, health) | AWS **g6.xlarge** (NVIDIA L4, 24 GB) | ~30 min per 2.7 ha block | $0.805 / h on demand → **~$0.40 per block** |
+| **GPU compute (budget)** | Same pipeline, rented GPU | RunPod L4 / RTX 4090 | ~30 min per block | $0.34–0.74 / h → **~$0.20–0.35 per block** |
+| **GPU compute (alternative)** | Same pipeline | AWS g5.xlarge (A10G, 24 GB) | ~30 min per block | $1.006 / h → ~$0.50 per block |
+| **GPU compute (own)** | Your PC, NVIDIA GPU ≥ 8 GB | FarmWings compute node | ~30 min per block (RTX 5070 laptop) | **Free** (electricity) |
+| **Job API** | Upload, queue, results (`server/app.py`) | Runs on the GPU machine | 1 process | Included |
+| **Sign-in** | Sign in with Google + e-mail allow-list | Google Identity Services | per user | **Free** |
+
+*On-demand list prices, us-east-1 / RunPod, 2026. Verify with the provider before budgeting.*
+Example programme: **41 blocks** of this size ≈ 20 GPU-hours ≈ **$16** on AWS L4 (or ≈ $8 on RunPod), plus ≈ **$2 / month** storage.
+
+### Compute needed for deployment
+
+| | Minimum | Recommended |
+|---|---|---|
+| GPU | NVIDIA, 8 GB VRAM, CUDA 12 | NVIDIA L4 / A10G, 24 GB |
+| CPU / RAM | 4 vCPU / 16 GB | 8 vCPU / 32 GB (the Pilot was processed with 32 GB) |
+| Disk | 10 GB per block while processing | 50 GB SSD |
+| Software | Python 3.13, PyTorch 2.11 (CUDA), `requirements.txt`, model weights from Hugging Face (SAM 2.1 hiera-large, DINOv3 ViT-L SAT-493M) | same, as a container image |
+| Throughput | ~2 blocks / hour | scale out: one GPU worker per block |
+
+The web app needs no server: any static host works (GitHub Pages, S3 + CloudFront, Azure Static Web Apps).
+
+---
+
+## Sign-in (Google)
+
+The compute node can require **Sign in with Google**, so only people you allow can upload surveys and see their results
+(the bundled surveys stay public).
+
+1. Google Cloud console → *APIs & Services → Credentials* → **Create OAuth client ID** (type *Web application*).
+   Add the app origins, e.g. `https://athithyai.github.io` and `http://localhost:4173`, under *Authorized JavaScript origins*.
+2. Start the node with the client ID and an allow-list:
+   ```bash
+   python server/app.py --google-client-id <id>.apps.googleusercontent.com --allow you@example.com,@yourcompany.com
+   ```
+3. The app shows the Google button on **Analyze survey**. The node verifies the Google ID token (signature,
+   audience, expiry, verified e-mail) and checks the allow-list before creating a 12-hour session.
+
+---
+
+## Repository
 
 ```
-app/frontend/        Vite + MapLibre viewer (index.html, src/)
-processing/          pipeline stages + experiments/ (model trials)
-processing_outputs/  stage outputs (large rasters git-ignored; summaries and previews kept)
-public/data/         web data: plants.json, lines.json, summary.json, tiles/
-docs/                documentation
+app/frontend/          FarmWings app: Vite + MapLibre, screens in src/views/
+processing/            pipeline stages (run_pipeline.py) + experiments/ (model trials, audits)
+server/app.py          compute node: upload, job queue, sign-in, results
+public/data/           bundled surveys (Pilot + sample) served by the app
+public/sample/         sample GeoTIFFs for trying the import flow
+models/                reference identification model (fallback for surveys without planting lines)
+docs/                  data inventory, model evaluation, processing, limitations, future architecture
 ```
+
+Build the app locally: `npm install && npm run build && npm run preview` → http://localhost:4173.
+Every push to `main` builds and deploys to GitHub Pages ([.github/workflows/deploy-pages.yml](.github/workflows/deploy-pages.yml)).
+
+**Documentation:** [data inventory](docs/data-inventory.md) · [model evaluation](docs/model-evaluation.md) ·
+[processing](docs/processing.md) · [limitations](docs/limitations.md) · [future architecture](docs/architecture-future.md)

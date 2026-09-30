@@ -1,4 +1,5 @@
-# Farmwings processing pipeline (versions used for the Hari Pilot run, 2026-09-30).
+# FarmWings processing pipeline (versions used for the Pilot run, 2026-09-30).
+# The compute node (server/app.py) additionally needs: fastapi, uvicorn, python-multipart, google-auth.
 # torch / torchvision: install the CUDA build that matches your GPU, e.g.
 #   pip install torch==2.11.0 torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cu128
 numpy==2.3.5
@@ -22,3 +23,8 @@ SAM-2 @ git+https://github.com/facebookresearch/sam2.git
 deepforest==2.1.0
 # Model weights (Hugging Face): facebook/sam2.1-hiera-large, facebook/dinov3-vitl16-pretrain-sat493m
 # (gated: accept the licence on the model page), facebook/dinov2-base, openai/clip-vit-large-patch14
+fastapi==0.135.2
+uvicorn==0.42.0
+python-multipart==0.0.32
+google-auth==2.59.1
+joblib==1.5.3

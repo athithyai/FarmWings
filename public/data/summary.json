@@ -79,6 +79,13 @@
     "surveyed_area_ha": 2.6628374561615766,
     "ndvi_recall_detections": 2250
   },
+  "validation": {
+    "reference": "project installation record (reference, not ground truth)",
+    "reference_points": 5684,
+    "precision": 0.9906393500529848,
+    "recall": 0.9868050668543279,
+    "median_distance_m": 0.05549825474640971
+  },
   "models": {
     "detection": {
       "name": "RGB+NDVI plant-ness candidates + drip-line context + SAM 2.1 hiera-large prompts",

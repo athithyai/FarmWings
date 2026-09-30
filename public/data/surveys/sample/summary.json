@@ -1,0 +1,228 @@
+{
+  "project": "Sample survey (40 m)",
+  "brand": "FarmWings",
+  "subtitle": "Drone Mapping & Plant Intelligence",
+  "processing_date": "2026-10-01",
+  "declared_species": "Rhanterium epapposum",
+  "lifecycle": [
+    {
+      "step": "Data received",
+      "status": "done",
+      "detail": "RGB 6 mm + NDVI 2.36 cm, EPSG:32638"
+    },
+    {
+      "step": "Aligned & co-registered",
+      "status": "done",
+      "detail": "median residual shift 4.0 cm corrected"
+    },
+    {
+      "step": "Planting lines",
+      "status": "done",
+      "detail": "20 drip lines, 2.03 m spacing"
+    },
+    {
+      "step": "Plant detection",
+      "status": "done",
+      "detail": "354 planted positions + 144 between-line vegetation"
+    },
+    {
+      "step": "Identification",
+      "status": "partial",
+      "detail": "95% identified; experimental, weakly supervised"
+    },
+    {
+      "step": "Health analysis",
+      "status": "done",
+      "detail": "3 unsupervised condition groups for planted saplings; experimental"
+    },
+    {
+      "step": "Results published",
+      "status": "done",
+      "detail": "FarmWings app"
+    }
+  ],
+  "stats": {
+    "planted_positions": 354,
+    "expected_planting_positions": 355,
+    "inferred_missing_positions": 1,
+    "green_canopy_planted": 344,
+    "no_green_canopy_planted": 10,
+    "median_canopy_m2_planted": 0.0574,
+    "planted_identified_as_species": 323,
+    "between_line_vegetation": 144,
+    "all_detections": 498,
+    "identified": 471,
+    "identification_rate": 0.9457831325301205,
+    "class_counts": {
+      "Rhanterium epapposum (planted)": 342,
+      "Other vegetation": 129,
+      "Unclassified": 27
+    },
+    "planted_class": "Rhanterium epapposum (planted)",
+    "planted_identified": 342,
+    "health_counts_planted": {
+      "Good condition": 75,
+      "Fair condition": 204,
+      "Poor condition": 75
+    },
+    "good_condition_planted": 75,
+    "poor_condition_planted": 75,
+    "good_share_planted": 0.211864406779661,
+    "avg_health_score_planted": 0.5237316384180791,
+    "avg_mean_ndvi_planted": 0.2755042372881356,
+    "field_soil_ndvi_median": 0.09897851198911667,
+    "planting_lines": 20,
+    "line_spacing_m": 2.027633333333333,
+    "planted_density_per_ha": 2212.2787665913343,
+    "surveyed_area_ha": 0.16001600040009473,
+    "ndvi_recall_detections": 86
+  },
+  "validation": null,
+  "models": {
+    "detection": {
+      "name": "RGB+NDVI plant-ness candidates + drip-line context + SAM 2.1 hiera-large prompts",
+      "version": "0.1.0",
+      "summary": "RGB darkness + NDVI anomaly candidates, drip-line context, SAM 2.1 hiera-large point+box prompts on 1.18 cm RGB, core trimming, NDVI recall pass",
+      "confidence_note": "heuristic score (SAM mask IoU x candidate strength), not a calibrated probability",
+      "by_source": {
+        "RGB+NDVI candidate": 412,
+        "NDVI vegetation patch": 86
+      },
+      "rejected": null
+    },
+    "identification": {
+      "name": "Frozen dinov3-vitl16-sat493m crown-crop embedding + NDVI/RGB/geometry features -> logistic regression",
+      "backbone": "facebook/dinov3-vitl16-pretrain-sat493m",
+      "version": "0.1.0",
+      "classes": [
+        "Rhanterium epapposum (planted)",
+        "Other vegetation",
+        "Unclassified"
+      ],
+      "min_confidence": 0.7,
+      "trained_on": "this survey (weak labels from the planting layout)",
+      "spatial_cv": {
+        "folds": 5,
+        "block_m": 25.0,
+        "roc_auc": 0.9347139055222888,
+        "balanced_accuracy": 0.9110944777112442
+      },
+      "weak_labels": {
+        "planted": 334,
+        "other": 144,
+        "unlabelled": 20
+      },
+      "experimental": true,
+      "trial": null
+    },
+    "health": {
+      "name": "Unsupervised condition model: Gaussian mixture on DINOv3-SAT crown embedding + NDVI/RGB indicators",
+      "version": "0.2.0",
+      "approach": "unsupervised (no validated pretrained model, no field health labels)",
+      "classes": [
+        "Good condition",
+        "Fair condition",
+        "Poor condition"
+      ],
+      "groups": [
+        {
+          "rank": 1,
+          "name": "Good condition",
+          "n_plants": 75,
+          "median_ndvi": 0.3394973874092102,
+          "ndvi_contrast": 0.23844259977340698,
+          "green_fraction": 0.6521739130434783,
+          "canopy_area_m2": 0.10470848,
+          "no_green_canopy_share": 0.0,
+          "vari": -0.10179640352725983,
+          "group_score": 0.9320190857155051,
+          "profile": "median NDVI 0.34 (+0.24 vs soil), green canopy 1047 cm\u00b2, 0% without green canopy"
+        },
+        {
+          "rank": 2,
+          "name": "Fair condition",
+          "n_plants": 204,
+          "median_ndvi": 0.2486068457365036,
+          "ndvi_contrast": 0.14397208020091057,
+          "green_fraction": 0.3458089496519019,
+          "canopy_area_m2": 0.057923840000000004,
+          "no_green_canopy_share": 0.004901960784313725,
+          "vari": -0.1111111119389534,
+          "group_score": 0.51680287828678,
+          "profile": "median NDVI 0.25 (+0.14 vs soil), green canopy 579 cm\u00b2, 0% without green canopy"
+        },
+        {
+          "rank": 3,
+          "name": "Poor condition",
+          "n_plants": 75,
+          "median_ndvi": 0.20371918380260468,
+          "ndvi_contrast": 0.10716839134693146,
+          "green_fraction": 0.07988980716253444,
+          "canopy_area_m2": 0.01837968,
+          "no_green_canopy_share": 0.12,
+          "vari": -0.13333334028720856,
+          "group_score": 0.1285188592416639,
+          "profile": "median NDVI 0.20 (+0.11 vs soil), green canopy 184 cm\u00b2, 12% without green canopy"
+        }
+      ],
+      "k": 3,
+      "bic_by_k": {
+        "3": -757.3558478193318,
+        "4": 184.60901998652753,
+        "5": 1385.7861294213217
+      },
+      "population": "planted saplings (detected planting positions); between-line vegetation is not graded",
+      "canopy_rule": {
+        "dndvi_above_soil": 0.2,
+        "min_canopy_m2": 0.004
+      },
+      "stability_ari_mean": 0.5413123286638134,
+      "mean_confidence": 0.9885992123479194,
+      "spearman_score_vs_vigour_index": 0.9076530167594764,
+      "vigour_index": {
+        "weights": {
+          "ndvi_contrast": 0.3,
+          "p90_ndvi": 0.2,
+          "median_ndvi": 0.15,
+          "vari": 0.15,
+          "green_fraction": 0.1,
+          "log_green_area": 0.1
+        },
+        "bands_z": {
+          "Very high vigour": 1.5,
+          "High vigour": 0.5,
+          "Moderate vigour": -0.5,
+          "Low vigour": -1.5,
+          "Very low vigour": null
+        },
+        "spearman_ndvi_vs_rgb_subscore": 0.80051815188437
+      },
+      "experimental": true,
+      "disclaimer": "Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a laboratory disease diagnosis."
+    }
+  },
+  "data": {
+    "rgb": {
+      "file": "rgb.tif",
+      "pixel_size_m": 0.006000000000000985,
+      "size": [
+        6667,
+        6667
+      ]
+    },
+    "ndvi": {
+      "file": "ndvi.tif",
+      "pixel_size_m": 0.02359999999999864,
+      "size": [
+        1695,
+        1695
+      ],
+      "range": [
+        -0.1592320054769516,
+        0.7563019394874573
+      ],
+      "median": 0.10225412994623184
+    },
+    "crs": "EPSG:32638"
+  }
+}

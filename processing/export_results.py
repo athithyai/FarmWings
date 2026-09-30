@@ -10,6 +10,7 @@ Outputs: <out>/web/combined_plants.geojson  (full, source CRS, all provenance fi
 from __future__ import annotations
 
 import json
+import os
 
 from common import (BRAND, OUT, PROCESSING_DATE, PROJECT_NAME, SPECIES, WEB_DATA,  # noqa: I001
                     out_dir, read_json, write_json)
@@ -33,6 +34,16 @@ WEB_FIELDS = [
 ]
 
 
+SKIP_IDENTIFY = os.environ.get("FARMWINGS_SKIP_IDENTIFY") == "1"
+SKIP_HEALTH = os.environ.get("FARMWINGS_SKIP_HEALTH") == "1"
+NOT_RUN_IDENT = {"model": "Not run", "backbone": "–", "version": "–", "classes": [], "min_confidence": 0.7,
+                 "trained_on": None, "spatial_cv": None, "weak_labels": {}, "not_run": True}
+NOT_RUN_HEALTH = {"model": "Not run", "version": "–", "approach": "not run", "classes": [], "groups": [], "k": 0,
+                  "bic_by_k": {}, "stability_ari_mean": None, "mean_confidence": None,
+                  "spearman_score_vs_vigour_index": None, "vigour_index": None, "field_median": {"bg_ndvi": None},
+                  "disclaimer": "Plant health was not run for this survey.", "not_run": True}
+
+
 def _opt(path):
     return read_json(path) if path.exists() else None
 
@@ -41,8 +52,16 @@ def main() -> dict:
     import geopandas as gpd
 
     det = gpd.read_file(OUT / "detection" / "plants.geojson")
-    ide = gpd.read_file(OUT / "identification" / "plant_identification.geojson").drop(columns="geometry")
-    hea = gpd.read_file(OUT / "health" / "plant_health.geojson").drop(columns="geometry")
+    import pandas as pd
+    ids = det[["plant_id"]]
+    if SKIP_IDENTIFY:
+        ide = ids.assign(predicted_class="Not run", prediction_confidence=None, p_planted=None)
+    else:
+        ide = gpd.read_file(OUT / "identification" / "plant_identification.geojson").drop(columns="geometry")
+    if SKIP_HEALTH:
+        hea = pd.DataFrame({"plant_id": ids.plant_id})
+    else:
+        hea = gpd.read_file(OUT / "health" / "plant_health.geojson").drop(columns="geometry")
     ide = ide.rename(columns={"predicted_class": "plant_class", "prediction_confidence": "identification_confidence",
                               "model_version": "identification_model_version",
                               "processing_date": "identification_date", "experimental": "identification_experimental"})
@@ -105,15 +124,15 @@ def build_summary(comb) -> dict:
     ali = read_json(OUT / "aligned" / "alignment.json")
     lin = read_json(OUT / "lines" / "lines_summary.json")
     det = read_json(OUT / "detection" / "detection_summary.json")
-    ide = read_json(OUT / "identification" / "identification_summary.json")
-    hea = read_json(OUT / "health" / "health_summary.json")
+    ide = NOT_RUN_IDENT if SKIP_IDENTIFY else read_json(OUT / "identification" / "identification_summary.json")
+    hea = NOT_RUN_HEALTH if SKIP_HEALTH else read_json(OUT / "health" / "health_summary.json")
     trial_d = _opt(OUT / "experiments" / "detection_trial_v1_baselines.json")
     trial_i = _opt(OUT / "experiments" / "identification_trial.json")
 
     planted_cls = f"{SPECIES} (planted)"
     planted = comb[comb.on_planting_line]
     classes = hea["classes"]
-    hc = planted.health_class.value_counts()
+    hc = planted.health_class.value_counts() if "health_class" in planted else {}
     good = int(sum(hc.get(c, 0) for c in classes if "good" in c.lower()))
     poor = int(sum(hc.get(c, 0) for c in classes if "poor" in c.lower()))
     area_ha = ali["valid_area_m2"] / 1e4
@@ -125,20 +144,20 @@ def build_summary(comb) -> dict:
         "green_canopy_planted": int(canopy.sum()) if canopy is not None else None,
         "no_green_canopy_planted": int((~canopy).sum()) if canopy is not None else None,
         "median_canopy_m2_planted": float(planted.canopy_area_m2.median()) if "canopy_area_m2" in planted else None,
-        "planted_identified_as_species": int((planted.plant_class == planted_cls).sum()),
+        "planted_identified_as_species": None if SKIP_IDENTIFY else int((planted.plant_class == planted_cls).sum()),
         "between_line_vegetation": int((~comb.on_planting_line).sum()),
         "all_detections": int(len(comb)),
-        "identified": int((comb.plant_class != "Unclassified").sum()),
-        "identification_rate": float((comb.plant_class != "Unclassified").mean()),
+        "identified": None if SKIP_IDENTIFY else int((comb.plant_class != "Unclassified").sum()),
+        "identification_rate": None if SKIP_IDENTIFY else float((comb.plant_class != "Unclassified").mean()),
         "class_counts": {str(k): int(v) for k, v in comb.plant_class.value_counts().items()},
         "planted_class": planted_cls,
         "planted_identified": int((comb.plant_class == planted_cls).sum()),
         "health_counts_planted": {c: int(hc.get(c, 0)) for c in classes},
         "good_condition_planted": good, "poor_condition_planted": poor,
         "good_share_planted": good / max(len(planted), 1),
-        "avg_health_score_planted": float(planted.health_score.mean()),
-        "avg_mean_ndvi_planted": float(planted.mean_ndvi.mean()),
-        "field_soil_ndvi_median": float(hea["field_median"]["bg_ndvi"]),
+        "avg_health_score_planted": float(planted.health_score.mean()) if "health_score" in planted else None,
+        "avg_mean_ndvi_planted": float(planted.mean_ndvi.mean()) if "mean_ndvi" in planted else None,
+        "field_soil_ndvi_median": hea["field_median"].get("bg_ndvi"),
         "planting_lines": lin["n_lines"], "line_spacing_m": lin["median_line_spacing_m"],
         "planted_density_per_ha": len(planted) / area_ha,
         "surveyed_area_ha": area_ha,
@@ -146,6 +165,13 @@ def build_summary(comb) -> dict:
         if "detection_source" in comb else 0,
     }
     rgb, ndvi = inv["rgb"], inv["ndvi"]
+    val = _opt(OUT / "experiments" / "validation_reference.json")
+    validation = None
+    if val and "planted_vs_installed_offset_corrected" in val:   # aggregates only; the record itself stays local
+        v = val["planted_vs_installed_offset_corrected"]
+        validation = {"reference": "project installation record (reference, not ground truth)",
+                      "reference_points": v["reference"], "precision": v["precision"], "recall": v["recall"],
+                      "median_distance_m": v["median_distance_m"]}
     rejected = None
     if trial_d:
         rejected = {"DeepForest tree model (weecology/deepforest-tree)": "0 detections on 3 test tiles at 2.4 cm and 10 cm (score>0.1)",
@@ -164,6 +190,7 @@ def build_summary(comb) -> dict:
             {"step": "Results published", "status": "done", "detail": "FarmWings app"},
         ],
         "stats": stats,
+        "validation": validation,
         "models": {
             "detection": {"name": det["model"], "version": det["version"],
                           "summary": "RGB darkness + NDVI anomaly candidates, drip-line context, SAM 2.1 hiera-large point+box prompts on 1.18 cm RGB, core trimming, NDVI recall pass",

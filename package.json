@@ -2,7 +2,7 @@
   "name": "farmwings",
   "private": true,
   "version": "0.1.0",
-  "description": "Farmwings - Drone Mapping & Plant Intelligence (Hari Pilot viewer)",
+  "description": "FarmWings - Drone Mapping & Plant Intelligence",
   "type": "module",
   "scripts": {
     "dev": "vite --config app/frontend/vite.config.js",

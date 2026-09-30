@@ -7,6 +7,7 @@ export) on this machine's GPU and serves the results back to the app.
 
     .venv\\Scripts\\python.exe server/app.py                 # http://127.0.0.1:8765
     .venv\\Scripts\\python.exe server/app.py --port 9000 --origins https://example.org
+    python server/app.py --google-client-id <id>.apps.googleusercontent.com --allow you@example.com,@yourcompany.com
 
 Jobs run one at a time (one GPU). Each job lives in server_jobs/<id>/ (input/, outputs/, web/,
 pipeline.log, job.json) and survives restarts.
@@ -18,6 +19,7 @@ import json
 import os
 import queue
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -27,7 +29,7 @@ import uuid
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
@@ -42,6 +44,39 @@ VERSION = "0.2.0"
 DEFAULT_ORIGINS = r"https://athithyai\.github\.io|http://(localhost|127\.0\.0\.1)(:\d+)?"
 
 app = FastAPI(title="FarmWings compute server", version=VERSION)
+
+# ------------------------------------------------------------------ sign-in (Google)
+# Enabled when a Google OAuth client ID is configured (--google-client-id or
+# FARMWINGS_GOOGLE_CLIENT_ID). The app signs the user in with Google Identity Services and sends
+# the Google ID token once; the server verifies it (signature, audience, issuer, expiry,
+# verified e-mail), checks the allow-list and returns a session token used for every request.
+AUTH = {"client_id": None, "allow": []}
+SESSIONS: dict[str, dict] = {}
+SESSION_HOURS = 12
+
+
+def email_allowed(email: str) -> bool:
+    email = email.lower()
+    for rule in AUTH["allow"]:
+        rule = rule.strip().lower()
+        if rule == "*" or rule == email or (rule.startswith("@") and email.endswith(rule)):
+            return True
+    return False
+
+
+def session_for(token: str | None) -> dict:
+    if not AUTH["client_id"]:
+        return {"email": None}                       # sign-in disabled (local use)
+    sess = SESSIONS.get(token or "")
+    if not sess or sess["exp"] < time.time():
+        SESSIONS.pop(token or "", None)
+        raise HTTPException(401, "sign in required")
+    return sess
+
+
+def require_user(request: Request) -> dict:
+    h = request.headers.get("authorization", "")
+    return session_for(h[7:] if h.lower().startswith("bearer ") else None)
 jobs: dict[str, dict] = {}
 work: "queue.Queue[str]" = queue.Queue()
 lock = threading.Lock()
@@ -117,6 +152,9 @@ def worker():
         d = job_dir(jid)
         cmd = [sys.executable, "-u", str(PIPELINE), "--input", str(d / "input"), "--out", str(d / "outputs"),
                "--web", str(d / "web"), "--project", job["name"], "--species", job["species"]]
+        skip = [o for o in ("identify", "health") if o not in job.get("operations", ["identify", "health"])]
+        if skip:
+            cmd += ["--skip", ",".join(skip)]
         job.update(status="running", started=time.time(), stage="inspect", progress=0.0)
         save(job)
         done_w = 0.0
@@ -165,17 +203,53 @@ def index():
 def status():
     return {"ok": True, "service": "farmwings-compute", "version": VERSION, "gpu": GPU,
             "queued": work.qsize(), "running": sum(j.get("status") == "running" for j in jobs.values()),
-            "jobs": len(jobs)}
+            "jobs": len(jobs),
+            "auth": {"required": bool(AUTH["client_id"]), "provider": "google", "client_id": AUTH["client_id"]}}
+
+
+@app.post("/api/auth/google")
+async def auth_google(request: Request):
+    if not AUTH["client_id"]:
+        raise HTTPException(400, "sign-in is not enabled on this compute node")
+    from google.auth.transport import requests as grequests
+    from google.oauth2 import id_token
+    body = await request.json()
+    try:
+        info = id_token.verify_oauth2_token(body.get("credential", ""), grequests.Request(), AUTH["client_id"])
+    except Exception as e:
+        raise HTTPException(401, f"Google sign-in could not be verified ({e})")
+    if info.get("iss") not in ("accounts.google.com", "https://accounts.google.com") or not info.get("email_verified"):
+        raise HTTPException(401, "Google account e-mail is not verified")
+    email = info["email"]
+    if not email_allowed(email):
+        raise HTTPException(403, f"{email} is not on this compute node's access list")
+    token = secrets.token_urlsafe(24)
+    SESSIONS[token] = {"email": email, "name": info.get("name"), "picture": info.get("picture"),
+                       "exp": time.time() + SESSION_HOURS * 3600}
+    return {"token": token, **{k: v for k, v in SESSIONS[token].items()}}
+
+
+@app.get("/api/auth/me")
+def auth_me(user: dict = Depends(require_user)):
+    return user
+
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request):
+    h = request.headers.get("authorization", "")
+    SESSIONS.pop(h[7:] if h.lower().startswith("bearer ") else "", None)
+    return {"ok": True}
 
 
 @app.get("/api/jobs")
-def list_jobs():
+def list_jobs(user: dict = Depends(require_user)):
     return sorted((public(j) for j in jobs.values()), key=lambda j: -j["created"])
 
 
 @app.post("/api/jobs")
 async def create_job(rgb: UploadFile = File(...), ndvi: UploadFile = File(...),
-                     name: str = Form("Uploaded survey"), species: str = Form("Palm")):
+                     name: str = Form("Uploaded survey"), species: str = Form("Rhanterium epapposum"),
+                     operations: str = Form("detect,identify,health"), user: dict = Depends(require_user)):
     jid = time.strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:6]
     d = job_dir(jid)
     (d / "input").mkdir(parents=True)
@@ -192,16 +266,18 @@ async def create_job(rgb: UploadFile = File(...), ndvi: UploadFile = File(...),
     except HTTPException:
         shutil.rmtree(d, ignore_errors=True)
         raise
-    job = {"id": jid, "name": name.strip()[:80] or "Uploaded survey", "species": species.strip()[:40] or "Palm",
+    ops = [o for o in ("detect", "identify", "health") if o in operations.split(",") or o == "detect"]
+    job = {"id": jid, "name": name.strip()[:80] or "Uploaded survey", "species": species.strip()[:60] or "Planted sapling",
+           "operations": ops,
            "created": time.time(), "status": "queued", "stage": None, "progress": 0.0,
-           "files": {"rgb": rgb.filename, "ndvi": ndvi.filename}, "inputs": info}
+           "files": {"rgb": rgb.filename, "ndvi": ndvi.filename}, "inputs": info, "created_by": user.get("email")}
     save(job)
     work.put(jid)
     return public(job)
 
 
 @app.get("/api/jobs/{jid}")
-def get_job(jid: str):
+def get_job(jid: str, user: dict = Depends(require_user)):
     job = jobs.get(jid)
     if not job:
         raise HTTPException(404, "no such job")
@@ -212,7 +288,7 @@ def get_job(jid: str):
 
 
 @app.delete("/api/jobs/{jid}")
-def delete_job(jid: str):
+def delete_job(jid: str, user: dict = Depends(require_user)):
     job = jobs.get(jid)
     if not job:
         raise HTTPException(404, "no such job")
@@ -226,7 +302,19 @@ def delete_job(jid: str):
 
 
 @app.get("/api/jobs/{jid}/data/{path:path}")
-def job_data(jid: str, path: str):
+def job_data(jid: str, path: str, user: dict = Depends(require_user)):
+    return _serve(jid, path)
+
+
+@app.get("/api/s/{token}/jobs/{jid}/data/{path:path}")
+def job_data_session(token: str, jid: str, path: str):
+    """Same as above with the session in the path, so images and map tiles (which cannot send
+    headers) load for signed-in users."""
+    session_for(token)
+    return _serve(jid, path)
+
+
+def _serve(jid: str, path: str):
     base = (job_dir(jid) / "web").resolve()
     p = (base / path).resolve()
     if base not in p.parents or not p.is_file():
@@ -266,13 +354,22 @@ def main():
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--origins", default=DEFAULT_ORIGINS, help="regex of allowed app origins")
+    ap.add_argument("--google-client-id", default=os.environ.get("FARMWINGS_GOOGLE_CLIENT_ID"),
+                    help="Google OAuth client ID; enables 'Sign in with Google' for this node")
+    ap.add_argument("--allow", default=os.environ.get("FARMWINGS_ALLOW", ""),
+                    help="comma-separated e-mails and/or @domains allowed to sign in ('*' = any Google account)")
     a = ap.parse_args()
+    AUTH["client_id"] = a.google_client_id or None
+    AUTH["allow"] = [x for x in a.allow.split(",") if x.strip()]
+    if AUTH["client_id"] and not AUTH["allow"]:
+        raise SystemExit("--allow is required with --google-client-id (who may sign in?)")
     GPU = gpu_name()
     load_existing()
     app.add_middleware(CORSMiddleware, allow_origin_regex=a.origins, allow_methods=["*"], allow_headers=["*"])
     app.add_middleware(PrivateNetworkAccess)
     threading.Thread(target=worker, daemon=True).start()
-    print(f"FarmWings compute server {VERSION} on http://{a.host}:{a.port}  GPU: {GPU or 'none detected'}")
+    print(f"FarmWings compute server {VERSION} on http://{a.host}:{a.port}  GPU: {GPU or 'none detected'}  "
+          f"sign-in: {'Google, ' + str(len(AUTH['allow'])) + ' allow rules' if AUTH['client_id'] else 'off (local use)'}")
     uvicorn.run(app, host=a.host, port=a.port, log_level="warning")
 
 
