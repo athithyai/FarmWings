@@ -1,0 +1,26 @@
+{
+  "volunteer_patch": {
+    "deepforest_native": 0,
+    "deepforest_10cm": 0,
+    "sam_amg_masks": 191,
+    "sam_amg_median_area_px": 218.0,
+    "blob_candidates": 263,
+    "sam_prompted": 228
+  },
+  "planting_grid": {
+    "deepforest_native": 0,
+    "deepforest_10cm": 0,
+    "sam_amg_masks": 226,
+    "sam_amg_median_area_px": 194.5,
+    "blob_candidates": 287,
+    "sam_prompted": 253
+  },
+  "sparse": {
+    "deepforest_native": 0,
+    "deepforest_10cm": 0,
+    "sam_amg_masks": 223,
+    "sam_amg_median_area_px": 243.0,
+    "blob_candidates": 246,
+    "sam_prompted": 227
+  }
+}

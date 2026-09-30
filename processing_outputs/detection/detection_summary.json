@@ -1,0 +1,28 @@
+{
+  "n_candidates": 10929,
+  "n_candidates_on_line": 6645,
+  "n_candidates_kept": 7752,
+  "n_plants": 6754,
+  "n_on_planting_line": 5770,
+  "n_between_lines": 984,
+  "area_m2_median": 0.1824,
+  "area_m2_p90": 0.34520999999999996,
+  "detection_confidence_median": 0.805,
+  "core_found_fraction": 0.9170861711578324,
+  "parameters": {
+    "PEAK_Z": 3.0,
+    "PEAK_WINDOW_px": 31,
+    "BG_SIGMA_px": 40,
+    "ON_LINE_PX": 10,
+    "OFFLINE_MIN_ZN": 4.0,
+    "area_px": [
+      40,
+      2500
+    ],
+    "min_solidity": 0.7,
+    "max_elongation": 3.0,
+    "sam_box_half_px": 24
+  },
+  "model": "RGB+NDVI plant-ness candidates + drip-line context + SAM 2.1 hiera-large prompts",
+  "version": "0.1.0"
+}

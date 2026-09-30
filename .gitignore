@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node / build
+node_modules/
+dist/
+
+# Large processing rasters and arrays (regenerate with processing/run_pipeline.py)
+processing_outputs/**/*.tif
+processing_outputs/**/*.npz
+processing_outputs/**/*.npy
+processing_outputs/**/*.pt
+processing_outputs/cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large intermediate vector outputs (compact copies are published in public/data)
+processing_outputs/**/*.geojson
+processing_outputs/explore/

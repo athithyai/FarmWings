@@ -1,0 +1,7 @@
+{
+  "angle_deg_rotation_to_vertical": 25.00000000000002,
+  "n_lines": 112,
+  "total_length_m": 11626.69214801539,
+  "median_line_spacing_m": 1.9981333333333404,
+  "method": "1. black top-hat of brightness (grey closing 7 px - brightness) -> thin dark features\n  2. dominant orientation by maximising column-profile variance over rotations\n  3. rotate so lines run vertically; in overlapping 400 px (9.4 m) blocks, peaks of the\n     column profile are line positions (tolerates gentle curvature / non-parallel lines)\n  4. link block peaks into tracks (|dx| < 20 px), drop tracks seen in < 3 blocks and\n     short tracks lying < 60 px from a long line (spurious in-between peaks);\n     interpolate each track x'(y') for distance queries"
+}
