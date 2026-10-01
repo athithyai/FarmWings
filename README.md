@@ -27,7 +27,7 @@ New surveys are imported in the app and processed on a GPU **compute node** (you
 |---|---|
 | <img src="docs/assets/app_landing.png" alt="Landing page"/><br/><sub>Public page: the solution on one real field patch (drone image → NDVI → plants → identity → health) and a diagram of every model</sub> | <img src="docs/assets/app_signin.png" alt="Sign in"/><br/><sub><b>Sign in with Google</b> (once a client ID is configured) or <b>Continue with demo access</b>, clearly labelled</sub> |
 | **3 · Pick a project** | **4 · Project results** |
-| <img src="docs/assets/app_projects.png" alt="Project picker"/><br/><sub>Project locations on a map. Clicking the Pilot flies to the site, shows every sapling coloured by condition and the headline numbers</sub> | <img src="docs/assets/app_overview.png" alt="Project overview"/><br/><sub>The project workspace: Overview, Map, Plants, Insights, Methodology, Analyze survey</sub> |
+| <img src="docs/assets/app_projects.png" alt="Project picker"/><br/><sub>Project locations on a map. Clicking the Pilot flies to the site, shows every sapling coloured by condition and the headline numbers</sub> | <img src="docs/assets/app_overview.png" alt="Project overview"/><br/><sub>The project workspace opens on the <b>project timeline</b> (requested → capture prep → permit → flight → post-processing → insights → complete) and the plant count; then Map, Plants, Insights, Methodology, Analyze survey</sub> |
 
 ## The Pilot at a glance
 
@@ -125,6 +125,13 @@ consistent with a transparent NDVI/RGB vigour index (ρ **0.92**).
 Open **[the live app](https://athithyai.github.io/FarmWings/)** → **Sign in** (Google) or **Try the demo** →
 click the **Pilot** on the project map → **Open results**. The project bar (*Projects / Pilot*) also switches to the
 bundled **Sample survey** (40 m × 40 m) and to any survey finished on a connected compute node.
+
+**Project timeline.** Each project opens on its timeline: Requested, Data capture prep, Permit application, Drone flight,
+Post-processing, Insight generation, Complete, each with its owner (client, drone team, FarmWings), date and status.
+The dates live in `timeline.json` next to the survey's results (Pilot: [`public/data/timeline.json`](public/data/timeline.json));
+`null` shows as *Date not recorded*, and `status` can be `done`, `current` or `upcoming`. The Pilot's survey files carry no
+request, permit or flight dates, so those steps stay blank until they are filled in. Surveys without the file show
+the same steps with the FarmWings processing date.
 
 ### 2. Process your own survey
 

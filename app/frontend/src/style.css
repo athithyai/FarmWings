@@ -152,6 +152,35 @@ body[data-mode="public"] #screen, body[data-mode="auth"] #screen, body[data-mode
 .model-card .big { font-family: var(--display); font-size: 26px; font-weight: 700; }
 .model-card p { margin: 0; color: var(--ink-2); font-size: 14px; }
 
+/* project timeline */
+.timeline-card { padding: 20px 22px 18px; }
+.tl-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.tl-head h2 { font-size: 20px; }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.tl { position: relative; display: flex; flex-direction: column; gap: 3px; padding: 0 10px 0 0; min-width: 0; }
+.tl::before { content: ""; position: absolute; left: 30px; right: 4px; top: 13px; height: 2px; background: var(--line-2); }
+.tl:last-child::before { display: none; }
+.tl.done::before { background: var(--leaf); }
+.tl-dot { position: relative; z-index: 1; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700;
+  background: var(--panel-2); color: var(--muted); border: 2px solid var(--line-2); margin-bottom: 8px; }
+.tl.done .tl-dot { background: var(--leaf); border-color: var(--leaf); color: #fff; }
+.tl.current .tl-dot { background: #fff; border-color: var(--sand); color: var(--sand); box-shadow: 0 0 0 4px #f6ecdc; }
+.tl b { font-size: 14px; line-height: 1.25; }
+.tl-date { font-family: var(--mono); font-size: 12px; color: var(--ink); }
+.tl-date.none { color: var(--muted); font-family: var(--body); font-style: italic; }
+.tl-owner { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sand); font-weight: 600; }
+.tl-detail { font-size: 12.5px; color: var(--ink-2); line-height: 1.35; margin-top: 2px; }
+@media (max-width: 1100px) {
+  .timeline { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .tl { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; column-gap: 12px; row-gap: 1px; padding: 0 0 14px; }
+  .tl::before { left: 13px; right: auto; top: 30px; bottom: 0; width: 2px; height: auto; }
+  .tl-dot { grid-row: 1 / span 3; margin: 0; }
+  .tl b { grid-column: 2; }
+  .tl-date { grid-column: 3; grid-row: 1; text-align: right; }
+  .tl-owner { grid-column: 2; }
+  .tl-detail { grid-column: 2 / -1; }
+}
+
 /* ---------- tables / inventory ---------- */
 .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 14px; }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }

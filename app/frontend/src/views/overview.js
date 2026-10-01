@@ -1,5 +1,53 @@
 import { esc, fmt } from "../ui.js";
 
+// Project timeline: public/data/timeline.json per survey; surveys without one get the generic
+// steps with only the FarmWings dates (from the summary) filled in.
+const DEFAULT_STEPS = [
+  ["requested", "Requested", "Client", "Survey requested: the block, the planted species and the questions to answer"],
+  ["prep", "Data capture prep", "Drone team", "Flight plan, sensors (RGB + multispectral), ground control, weather window"],
+  ["permit", "Permit application", "Drone team", "Flight and site-access permits"],
+  ["flight", "Drone flight", "Drone team", "RGB and multispectral capture over the block"],
+  ["postprocessing", "Post-processing", "Drone team", "Orthomosaic and NDVI built and delivered as GeoTIFFs"],
+  ["insights", "Insight generation", "FarmWings", "Detection, identification and health for every plant"],
+  ["complete", "Complete", "FarmWings", "Results published in the FarmWings workspace"],
+];
+const day = (d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const short = (d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+function timelineSteps(s) {
+  if (s.timeline?.steps?.length) return s.timeline.steps;
+  const done = s.summary.processing_date;
+  return DEFAULT_STEPS.map(([key, label, owner, detail]) => ({
+    key, label, owner, detail, status: "done",
+    date: key === "insights" || key === "complete" ? done : null,
+  }));
+}
+
+function timelineHtml(s) {
+  const steps = timelineSteps(s);
+  const when = (x) => x.start && x.end ? (x.start === x.end ? day(x.start) : `${short(x.start)} – ${day(x.end)}`)
+    : x.date ? `${x.date_label ? `${x.date_label} ` : ""}${day(x.date)}` : null;
+  const last = [...steps].reverse().find((x) => x.status === "done");
+  const allDone = steps.every((x) => x.status === "done");
+  const cur = steps.find((x) => x.status === "current");
+  const lastDate = last && (last.end || last.date);
+  return `
+    <section class="section timeline-card card">
+      <div class="tl-head"><h2>Project timeline</h2>
+        <span class="chip ${allDone ? "ok" : ""}">${allDone ? `Complete${lastDate ? ` · ${day(lastDate)}` : ""}` : `In progress${cur ? `: ${esc(cur.label)}` : ""}`}</span></div>
+      <ol class="timeline">${steps.map((x, i) => {
+        const w = when(x);
+        return `<li class="tl ${x.status}" title="${esc(x.detail || "")}">
+          <span class="tl-dot" aria-hidden="true">${x.status === "done" ? "✓" : i + 1}</span>
+          <b>${esc(x.label)}</b>
+          <span class="tl-date ${w ? "" : "none"}">${w ? esc(w) : "Date not recorded"}</span>
+          <span class="tl-owner">${esc(x.owner || "")}</span>
+          <span class="tl-detail">${esc(x.detail || "")}</span>
+        </li>`;
+      }).join("")}</ol>
+    </section>`;
+}
+
 export function renderOverview(el, s) {
   const st = s.summary.stats;
   const M = s.summary.models;
@@ -41,6 +89,8 @@ export function renderOverview(el, s) {
       <div class="hero-img">${fig ? `<img src="${fig}" alt="Drone RGB orthomosaic of the ${esc(s.summary.project)} block" />` : ""}
         <span class="cap">RGB orthomosaic · ${fmt.n(st.surveyed_area_ha, 2)} ha</span></div>
     </section>
+
+    ${timelineHtml(s)}
 
     <section class="section">
       <h2>Plant count</h2>

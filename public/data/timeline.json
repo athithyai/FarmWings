@@ -1,0 +1,12 @@
+{
+  "note": "Project timeline shown on the Overview. Dates are YYYY-MM-DD (or start/end); null = not recorded yet. status: done | current | upcoming.",
+  "steps": [
+    { "key": "requested", "label": "Requested", "owner": "Client", "detail": "Survey requested: the block, the planted species and the questions to answer", "date": null, "status": "done" },
+    { "key": "prep", "label": "Data capture prep", "owner": "Drone team", "detail": "Flight plan, sensors (RGB + multispectral), ground control, weather window", "date": null, "status": "done" },
+    { "key": "permit", "label": "Permit application", "owner": "Drone team", "detail": "Flight and site-access permits", "date": null, "status": "done" },
+    { "key": "flight", "label": "Drone flight", "owner": "Drone team", "detail": "RGB at 6 mm and multispectral capture over the 2.7 ha block", "date": null, "status": "done" },
+    { "key": "postprocessing", "label": "Post-processing", "owner": "Drone team", "detail": "Orthomosaic and NDVI built and delivered as GeoTIFFs", "date": "2026-09-30", "date_label": "Delivered", "status": "done" },
+    { "key": "insights", "label": "Insight generation", "owner": "FarmWings", "detail": "Detection, identification and health for every plant; checked against the installation record", "start": "2026-09-30", "end": "2026-10-01", "status": "done" },
+    { "key": "complete", "label": "Complete", "owner": "FarmWings", "detail": "Results published in the FarmWings workspace", "date": "2026-10-01", "status": "done" }
+  ]
+}

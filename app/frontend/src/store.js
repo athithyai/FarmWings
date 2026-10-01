@@ -35,12 +35,14 @@ export async function peekSurvey(desc) {
 }
 
 async function getJson(url, optional = false) {
-  const r = await fetch(url);
-  if (!r.ok) {
-    if (optional) return null;
-    throw new Error(`${url} → ${r.status}`);
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`${url} → ${r.status}`);
+    return await r.json();
+  } catch (e) {
+    if (optional) return null;   // missing optional file (some hosts answer with an HTML page)
+    throw e;
   }
-  return r.json();
 }
 
 // Colours: identification = categorical slots, health = diverging ramp sized to the group count
@@ -53,10 +55,10 @@ export const VIGOUR = ["Very high vigour", "High vigour", "Moderate vigour", "Lo
 
 async function load(desc) {
   const b = desc.base;
-  const [summary, plants, lines, tiles, media, figures, gaps] = await Promise.all([
+  const [summary, plants, lines, tiles, media, figures, gaps, timeline] = await Promise.all([
     getJson(b + "summary.json"), getJson(b + "plants.json"), getJson(b + "lines.json"),
     getJson(b + "tiles/index.json"), getJson(b + "media/index.json", true), getJson(b + "figures/index.json", true),
-    getJson(b + "gaps.json", true),
+    getJson(b + "gaps.json", true), getJson(b + "timeline.json", true),
   ]);
   const list = plants.features.map((f) => f.properties);
   const byId = new Map(list.map((p) => [p.plant_id, p]));
@@ -68,6 +70,7 @@ async function load(desc) {
   const s = {
     ...desc, summary, plants, lines, tiles, media, figures, list, byId, geomById, mediaPos,
     gaps: gaps || { type: "FeatureCollection", features: [] },
+    timeline,
     idClasses: [
       { key: planted, color: "#3987e5" },
       { key: "Other vegetation", color: "#d95926" },
