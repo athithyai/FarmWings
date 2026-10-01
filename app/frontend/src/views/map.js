@@ -35,7 +35,7 @@ function createMap(s) {
   current = s;
   map = new maplibregl.Map({
     container: "map", style: buildStyle(s), bounds: boundsOf(s), fitBoundsOptions: { padding: 30 },
-    minZoom: 15, maxZoom: 24.5, attributionControl: { compact: true },
+    minZoom: 15, maxZoom: 24.5, attributionControl: { compact: true, customAttribution: `<a href="${new URL("third-party-licenses.txt", document.baseURI).href}" target="_blank" rel="noopener">Credits</a>` },
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: true }), "top-right");
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
@@ -229,7 +229,7 @@ function summaryCard(plants, title) {
   return `<div class="card">
     <h3>${esc(title)}</h3>
     ${kv([["Planted saplings", fmt.int(n)], ["Green canopy", `${fmt.int(green)} · ${fmt.pct(green / (n || 1))}`],
-      [`Identified as ${esc(s.summary.declared_species.split(" ")[0])}`, `${fmt.int(ident)} · ${fmt.pct(ident / (n || 1))}`],
+      ["Planted stock", `${fmt.int(ident)} · ${fmt.pct(ident / (n || 1))}`],
       ["Mean NDVI", fmt.n(mean(plants, "mean_ndvi"))]])}
     <div class="health-strip" style="margin-top:12px">${s.healthClasses.map((c) => `<span title="${esc(c.key)}: ${hc[c.key] || 0}" style="width:${((hc[c.key] || 0) / (n || 1)) * 100}%;background:${c.color}"></span>`).join("")}</div>
     <div class="legend-row" style="font-size:12px">${s.healthClasses.map((c) => `<span><span class="dot" style="background:${c.color}"></span> ${fmt.int(hc[c.key] || 0)}</span>`).join("")}</div>

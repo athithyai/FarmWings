@@ -1,0 +1,53 @@
+FarmWings Source-Available License
+All Rights Reserved
+
+Copyright (c) 2026 athithyai (https://github.com/athithyai). All rights reserved.
+
+FarmWings (from SpatialWings) is published in this repository so that its source code,
+documentation and results can be read. Publishing it does not grant a licence to use it.
+
+1. What you may do
+   a. Read the source code, documentation and results in this repository.
+   b. Open the hosted demo of FarmWings in a web browser.
+   c. Use the features GitHub's Terms of Service allow for public repositories (viewing and
+      forking within GitHub). A fork does not grant any further rights.
+
+2. What you may not do without prior written permission from the copyright holder
+   a. Copy, modify, merge, adapt, translate or create derivative works of the software,
+      the models trained with it, or any part of them.
+   b. Use, run, host or deploy the software, in whole or in part, for any purpose,
+      commercial or non-commercial.
+   c. Publish, distribute, sublicense, sell, rent or offer the software or a service
+      based on it.
+   d. Use the data described in section 3 for any purpose.
+
+3. Data
+   The drone imagery, derived plant records, statistics, figures and screenshots of the
+   Pilot block and the sample survey (in particular public/data/, public/sample/,
+   public/showcase/, docs/assets/ and processing_outputs/) are project data owned by their
+   respective owners. They are included for demonstration only. No rights to them are
+   granted.
+
+   Exception: models/identification_reference.joblib is a classifier trained on features
+   from Meta's DINOv3 model. To the extent it is a derivative work of the DINO Materials,
+   it is made available under the DINOv3 License (licenses/DINOv3-LICENSE.md), including
+   its use restrictions (trade controls; no military, warfare, nuclear or weapons uses),
+   and not under this licence. Built with DINOv3.
+
+4. Third-party components
+   Third-party software, model weights, fonts, map data and services keep their own
+   licences and terms, listed in THIRD_PARTY_NOTICES.md. Nothing in this licence limits
+   the rights those licences grant for the third-party components themselves.
+
+5. Names and marks
+   No right is granted to use the names "FarmWings" or "SpatialWings", or their logos.
+
+6. No warranty; limitation of liability
+   The software and data are provided "as is", without warranty of any kind, express or
+   implied, including fitness for a particular purpose and non-infringement. In no event
+   shall the copyright holder be liable for any claim, damages or other liability arising
+   from the software, the data or their use.
+
+7. Permission
+   To request permission for any use not allowed above, contact the repository owner
+   through https://github.com/athithyai.

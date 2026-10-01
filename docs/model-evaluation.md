@@ -75,7 +75,8 @@ drip line is inpainted out of every crop so the model cannot learn "line = plant
 | CLIP ViT-L/14 crown crop + tabular | 0.991 |
 | **DINOv3 SAT-493M crown crop + tabular** | **0.993** (final plant set: 0.992) |
 
-Selected: DINOv3 SAT-493M crown embedding + NDVI/RGB/geometry → logistic regression. Below
+Selected: DINOv3 SAT-493M crown embedding + NDVI/RGB/geometry → logistic regression. The model is a
+**planted-stock vs other-vegetation classifier**, not a species classifier (class "Planted stock"). Below
 0.7 confidence a plant is Unclassified. When a survey has too few weak labels (no visible
 drip lines), the Pilot-trained reference model (`models/identification_reference.joblib`) is
 used and the summary says so. The species name comes from the installation record; the

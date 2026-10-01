@@ -67,7 +67,7 @@ export function renderAnalyze(el) {
       <div class="card">
         <h3><span class="num" style="color:var(--sand)">3</span> Choose operations</h3>
         <label class="layer"><input type="checkbox" checked disabled /><span>Plant detection<small>Drip lines, planting spots, SAM 2.1 outlines, empty spots (always on)</small></span></label>
-        <label class="layer"><input type="checkbox" id="op-identify" checked /><span>Plant identification<small>DINOv3-SAT crown model: planted species vs other vegetation</small></span></label>
+        <label class="layer"><input type="checkbox" id="op-identify" checked /><span>Plant identification<small>DINOv3-SAT crown model: planted stock vs other vegetation</small></span></label>
         <label class="layer"><input type="checkbox" id="op-health" checked /><span>Plant health<small>Green canopy + unsupervised condition groups</small></span></label>
         <p class="small muted" style="margin-bottom:0">Estimated time on one L4 GPU: ~30 min per 2.7 ha block.</p>
       </div>
@@ -80,8 +80,7 @@ export function renderAnalyze(el) {
     </div>
 
     <div class="section card"><h3>Surveys on this compute node</h3><div id="jobs" class="empty">Connect to see surveys.</div></div>
-
-    <p class="small muted section">Cloud storage, GPU options and cost estimates are in the <a href="https://github.com/athithyai/FarmWings#cloud-requirements-and-costs" target="_blank" rel="noopener">project README</a>.</p>`;
+`;
 
   let connected = false;
   let authRequired = false;

@@ -9,6 +9,9 @@ export function renderMethod(el, s) {
   const trialRows = trial ? Object.entries(trial).filter(([, v]) => v && typeof v === "object" && "roc_auc" in v)
     .sort((a, b) => b[1].roc_auc - a[1].roc_auc).slice(0, 8) : [];
   const v = s.summary.validation;
+  const atSpots = s.list.filter((p) => p.position_type === "Planting line");
+  const nCls = (k) => atSpots.filter((p) => p.plant_class === k).length;
+  const idCounts = { n: atSpots.length, planted: nCls(st.planted_class), other: nCls("Other vegetation"), uncl: nCls("Unclassified") };
 
   el.innerHTML = `
     <div class="page-head"><div><div class="eyebrow">Methodology</div><h1>How FarmWings reads a field</h1>
@@ -39,13 +42,14 @@ export function renderMethod(el, s) {
       </div>
 
       <div class="card stepcard">
-        <div class="flow-row">${identificationFlow(st, st.planted_class)}</div>
+        <div class="flow-row">${identificationFlow(idCounts)}</div>
         <div><div class="eyebrow">Model 2 · Experimental</div><h3>Plant identification</h3>
           <p>Each plant's 6 mm crop (drip line removed, background masked) is embedded with <b>${esc(M.identification.backbone)}</b>, a satellite-pretrained foundation model, and combined with NDVI, colour and shape in a small classifier.</p>
           <ul>
             <li>Labels without hand annotation: plants on drip lines are the planted stock; vegetation between lines is not.</li>
             <li>Classes: ${M.identification.classes.map(esc).join(", ")}; below ${fmt.pct(M.identification.min_confidence)} confidence a plant is Unclassified.</li>
             <li>The species name comes from the project record; it is not confirmable from imagery at sapling size.</li>
+            <li>Built with DINOv3 (Meta, DINOv3 License).</li>
             ${M.identification.spatial_cv ? `<li>Spatial cross-validation: AUC ${fmt.n(M.identification.spatial_cv.roc_auc, 3)}, balanced accuracy ${fmt.n(M.identification.spatial_cv.balanced_accuracy, 3)}.</li>` : ""}
           </ul>
           ${trialRows.length ? `<table class="mini"><thead><tr><th>Inputs tested</th><th class="n">AUC</th></tr></thead><tbody>${trialRows.map(([k, x]) =>

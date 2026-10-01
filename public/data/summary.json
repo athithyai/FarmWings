@@ -54,11 +54,11 @@
     "identified": 8080,
     "identification_rate": 0.9764350453172206,
     "class_counts": {
-      "Rhanterium epapposum (planted)": 5345,
+      "Planted stock": 5345,
       "Other vegetation": 2735,
       "Unclassified": 195
     },
-    "planted_class": "Rhanterium epapposum (planted)",
+    "planted_class": "Planted stock",
     "planted_identified": 5345,
     "health_counts_planted": {
       "Very good condition": 868,
@@ -107,7 +107,7 @@
       "backbone": "facebook/dinov3-vitl16-pretrain-sat493m",
       "version": "0.1.0",
       "classes": [
-        "Rhanterium epapposum (planted)",
+        "Planted stock",
         "Other vegetation",
         "Unclassified"
       ],

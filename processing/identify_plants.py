@@ -13,12 +13,13 @@ Separate from detection and from health. Input per detected plant:
 
 Labels (weak supervision, no manual annotation available):
   the planting design gives an appearance-independent label source. Objects centred on a
-  detected drip line with a clear plant/pit core are planted stock ("Palm (planted)" - the
-  species was supplied by the project, the imagery cannot confirm species at this crown
-  size); vegetation between lines is spontaneous ("Other vegetation"). Position is NOT a
+  detected drip line with a clear plant/pit core are planted stock ("Planted stock" - the
+  species name comes from the planting record; the imagery cannot confirm species at this
+  crown size); vegetation between lines is spontaneous ("Other vegetation"). Position is NOT a
   model input, so the classifier has to recognise the planted stock by appearance.
 
-Output classes: Palm (planted) / Other vegetation / Unclassified (max probability < 0.7).
+Output classes: Planted stock / Other vegetation / Unclassified (max probability < 0.7).
+This is a planted-stock vs other-vegetation classifier, not a species classifier.
 Outputs (processing_outputs/identification/): plant_identification.geojson,
 identification_summary.json, identification_examples.png
 """
@@ -27,11 +28,11 @@ from __future__ import annotations
 import argparse
 import os
 
-from common import DEFAULT_INPUT, OUT, PROCESSING_DATE, ROOT, SPECIES, find_inputs, out_dir, write_json  # noqa: I001
+from common import DEFAULT_INPUT, OUT, PLANTED_CLASS, PROCESSING_DATE, ROOT, find_inputs, out_dir, write_json  # noqa: I001
 
 import numpy as np
 
-PALM, OTHER, UNCLASSIFIED = f"{SPECIES} (planted)", "Other vegetation", "Unclassified"
+PALM, OTHER, UNCLASSIFIED = PLANTED_CLASS, "Other vegetation", "Unclassified"
 REFERENCE_MODEL = ROOT / "models" / "identification_reference.joblib"   # trained on the Pilot survey
 MIN_LABELS_PER_CLASS = 30
 MIN_CONFIDENCE = 0.7

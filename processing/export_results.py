@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import os
 
-from common import (BRAND, OUT, PROCESSING_DATE, PROJECT_NAME, SPECIES, WEB_DATA,  # noqa: I001
+from common import (BRAND, OUT, PLANTED_CLASS, PROCESSING_DATE, PROJECT_NAME, SPECIES, WEB_DATA,  # noqa: I001
                     out_dir, read_json, write_json)
 
 import numpy as np
@@ -129,7 +129,7 @@ def build_summary(comb) -> dict:
     trial_d = _opt(OUT / "experiments" / "detection_trial_v1_baselines.json")
     trial_i = _opt(OUT / "experiments" / "identification_trial.json")
 
-    planted_cls = f"{SPECIES} (planted)"
+    planted_cls = PLANTED_CLASS
     planted = comb[comb.on_planting_line]
     classes = hea["classes"]
     hc = planted.health_class.value_counts() if "health_class" in planted else {}

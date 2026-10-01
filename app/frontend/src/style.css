@@ -405,7 +405,8 @@ pre.cmd { background: #f2f1eb; border: 1px solid var(--line); border-radius: 10p
 .l-final p { color: var(--ink-2); margin: 0 0 22px; }
 .l-foot { border-top: 1px solid var(--line); padding: 22px 0 28px; }
 .l-foot .wrap { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
-.l-foot a { margin-left: auto; color: var(--ink-2); }
+.l-foot .foot-links { margin-left: auto; display: flex; gap: 16px; }
+.l-foot a { color: var(--ink-2); }
 .brand-mini { font-family: var(--display); font-size: 17px; }
 .brand-mini b { color: var(--leaf); }
 .brand-mini small { font-family: var(--body); font-size: 11px; color: var(--muted); margin-left: 4px; }

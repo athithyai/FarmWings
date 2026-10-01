@@ -62,7 +62,7 @@ export function renderOverview(el, s) {
     { k: "Planting spots", v: expected, d: `expected along ${st.planting_lines} planting lines`, share: 1 },
     { k: "Plants located", v: st.planted_positions, d: `${fmt.pct(st.planted_positions / expected, 1)} of spots · ${fmt.int(st.inferred_missing_positions)} spots empty`, share: st.planted_positions / expected },
     { k: "Green canopy", v: st.green_canopy_planted, d: `${fmt.pct(st.green_canopy_planted / st.planted_positions, 1)} of located plants are green`, share: st.green_canopy_planted / expected },
-    { k: `Identified as ${species.split(" ")[0]}`, v: st.planted_identified_as_species, d: `${fmt.pct(st.planted_identified_as_species / st.planted_positions, 1)} of located plants · experimental`, share: st.planted_identified_as_species / expected },
+    { k: "Planted stock", v: st.planted_identified_as_species, d: `${fmt.pct(st.planted_identified_as_species / st.planted_positions, 1)} of located plants look like the planted stock; species per planting record`, share: st.planted_identified_as_species / expected },
     { k: "Need attention", v: (st.no_green_canopy_planted || 0) + (st.inferred_missing_positions || 0), d: `${fmt.int(st.no_green_canopy_planted)} without green canopy + ${fmt.int(st.inferred_missing_positions)} empty spots`, alert: true },
   ];
   const totalHealth = Object.values(hc).reduce((a, b) => a + b, 0) || 1;

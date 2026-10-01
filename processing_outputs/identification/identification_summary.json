@@ -3,7 +3,7 @@
   "backbone": "facebook/dinov3-vitl16-pretrain-sat493m",
   "version": "0.1.0",
   "classes": [
-    "Rhanterium epapposum (planted)",
+    "Planted stock",
     "Other vegetation",
     "Unclassified"
   ],
@@ -11,7 +11,7 @@
   "n_plants": 8275,
   "class_counts": {
     "Other vegetation": 2735,
-    "Rhanterium epapposum (planted)": 5345,
+    "Planted stock": 5345,
     "Unclassified": 195
   },
   "identified_fraction": 0.9764350453172206,

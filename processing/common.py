@@ -25,6 +25,9 @@ DEFAULT_INPUT = Path(os.environ.get("FARMWINGS_INPUT", ROOT.parent / "Pilot"))
 PROJECT_NAME = os.environ.get("FARMWINGS_PROJECT", "Pilot")
 SPECIES = os.environ.get("FARMWINGS_SPECIES", "Rhanterium epapposum")   # planted species (installation record, block 4-9/197/RE)
 BRAND = "FarmWings"
+# The identification model separates planted stock from other vegetation by appearance; it does
+# not recognise species (the species name comes from the planting record).
+PLANTED_CLASS = "Planted stock"
 
 PROCESSING_DATE = date.today().isoformat()
 

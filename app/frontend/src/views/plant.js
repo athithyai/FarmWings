@@ -61,7 +61,7 @@ export function renderPlant(el, s, id) {
             ${meter(p.detection_confidence)}
           </div>
           <div class="card"><h3>2 · Identification <span class="badge">Exp.</span></h3>
-            ${kv([["Class", esc(p.plant_class)], ["Confidence", fmt.pct(p.identification_confidence)], [`P(planted ${esc(s.summary.declared_species.split(" ")[0])})`, fmt.n(p.p_planted)]])}
+            ${kv([["Class", esc(p.plant_class)], ["Confidence", fmt.pct(p.identification_confidence)], ["P(planted stock)", fmt.n(p.p_planted)]])}
             ${meter(p.identification_confidence, colorOf(s.idClasses, p.plant_class))}
           </div>
           <div class="card"><h3>3 · Health <span class="badge">Exp.</span></h3>

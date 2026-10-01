@@ -19,8 +19,8 @@ const STEPS = [
   },
   {
     key: "identify", title: "Tell planted stock from weeds", images: ["identify"],
-    text: "DINOv3, a vision model pretrained on 493 million satellite images, describes each plant crop. A classifier trained on the planting layout uses that description, with NDVI, colour and shape, to separate the planted species from other vegetation.",
-    legend: [["Planted species", "#3987e5"], ["Other vegetation", "#d95926"], ["Unclassified", "#898781"]],
+    text: "DINOv3, a vision model pretrained on 493 million satellite images, describes each plant crop. A classifier trained on the planting layout uses that description, with NDVI, colour and shape, to separate the planted stock from weeds and other vegetation. The species name comes from the planting record: at sapling size the imagery cannot confirm the species.",
+    legend: [["Planted stock", "#3987e5"], ["Other vegetation", "#d95926"], ["Unclassified", "#898781"]],
   },
   {
     key: "health", title: "Check every sapling's condition", images: ["health"],
@@ -99,8 +99,8 @@ export function renderLanding(el) {
         ${detectionFlow()}
       </div>
       <div class="model-block">
-        <div class="mb-head"><span class="num">2</span><div><h3>Identification: what is it?</h3>
-          <p>A satellite-pretrained vision model describes each plant; a small classifier separates the planted species from other vegetation.</p></div></div>
+        <div class="mb-head"><span class="num">2</span><div><h3>Identification: planted stock or weed?</h3>
+          <p>A satellite-pretrained vision model describes each plant; a small classifier separates the planted stock from other vegetation. It does not name species: the species comes from the planting record.</p></div></div>
         ${identificationFlow()}
       </div>
       <div class="model-block">
@@ -148,7 +148,7 @@ export function renderLanding(el) {
     <div class="wrap">
       <span class="brand-mini">Farm<b>Wings</b> <small>from SpatialWings</small></span>
       <span class="muted small">Health groups are inferred from RGB and NDVI; they are not a laboratory disease diagnosis.</span>
-      <a class="small" href="https://github.com/athithyai/FarmWings" target="_blank" rel="noopener">GitHub</a>
+      <span class="small foot-links muted">Built with DINOv3 · <a href="${new URL("third-party-licenses.txt", document.baseURI).href}" target="_blank" rel="noopener">Credits</a> · © 2026 FarmWings · All rights reserved</span>
     </div>
   </footer>`;
 

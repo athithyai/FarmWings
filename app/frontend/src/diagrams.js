@@ -31,15 +31,16 @@ export function detectionFlow(st) {
   ]);
 }
 
-export function identificationFlow(st, planted = "planted species") {
-  const out = st
-    ? `${fmt.int(st.class_counts?.[st.planted_class])} ${planted.replace(" (planted)", "")} · ${fmt.int(st.class_counts?.["Other vegetation"])} other · ${fmt.int(st.class_counts?.Unclassified)} unclassified`
-    : "Planted species, other vegetation or unclassified";
-  return flow("Plant identification: plant crop to DINOv3 satellite model, plus NDVI colour and shape, into a classifier", [
+// counts: {n, planted, other, uncl} for the plants at planting spots (Methodology); none on the landing page
+export function identificationFlow(counts) {
+  const out = counts
+    ? `Of ${fmt.int(counts.n)} plants at planting spots: ${fmt.int(counts.planted)} planted stock · ${fmt.int(counts.other)} other · ${fmt.int(counts.uncl)} unclassified`
+    : "Planted stock, other vegetation or unclassified";
+  return flow("Plant identification: plant crop to DINOv3 satellite model, plus NDVI colour and shape, into a classifier that separates planted stock from other vegetation", [
     lanes([node("data", "Plant crop", "6 mm, drip line removed"), node("model", "DINOv3 SAT-493M", "Describes how the crown looks", "AI model · Meta")],
       [node("data", "NDVI, colour, shape", "Per-plant measurements")]),
-    node("model", "Classifier", "Trained on the planting layout", "AI model"),
-    node("out", "Identity", out),
+    node("model", "Classifier", "Planted stock vs other vegetation, trained on the planting layout", "AI model"),
+    node("out", "Planted stock?", out),
   ]);
 }
 

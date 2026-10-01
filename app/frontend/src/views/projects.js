@@ -26,12 +26,11 @@ function outputs(s) {
   const hc = st.health_counts_planted || {};
   const classes = s.summary.models.health.classes || [];
   const total = classes.reduce((a, k) => a + (hc[k] || 0), 0) || 1;
-  const species = s.summary.declared_species.split(" ")[0];
   const cells = [
     ["Planting spots", st.expected_planting_positions ?? st.planted_positions, "expected from the drip lines"],
     ["Plants located", st.planted_positions, `${fmt.pct(st.planted_positions / (st.expected_planting_positions || st.planted_positions), 1)} of spots`],
     ["Green canopy", st.green_canopy_planted, `${fmt.pct(st.green_canopy_planted / st.planted_positions, 1)} of plants`],
-    [`Identified as ${species}`, st.planted_identified_as_species, `${fmt.pct(st.planted_identified_as_species / st.planted_positions, 1)} of plants`],
+    ["Planted stock", st.planted_identified_as_species, `${fmt.pct(st.planted_identified_as_species / st.planted_positions, 1)} of plants · species per record`],
   ];
   return `
     <div class="p-out">
@@ -137,7 +136,7 @@ export function renderProjects(el) {
     const first = loaded.get(PROJECTS[0].id);
     map = new maplibregl.Map({
       container: "pmap", style, center: center(first.tiles.layers.rgb.bounds), zoom: 5.2, minZoom: 2, maxZoom: 21,
-      attributionControl: { compact: true },
+      attributionControl: { compact: true, customAttribution: `<a href="${new URL("third-party-licenses.txt", document.baseURI).href}" target="_blank" rel="noopener">Credits</a>` },
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.on("zoom", () => markers.forEach((m) => m.getElement().classList.toggle("near", map.getZoom() > 14.5)));   // the imagery takes over
