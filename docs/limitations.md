@@ -2,12 +2,15 @@
 
 **Detection**
 * No field-verified plant list exists. Agreement with the project installation record
-  (99.1% / 98.7%) and visual audits are the evidence; neither is ground truth.
+  (99.5% / 99.0%) and visual audits are the evidence; neither is ground truth.
 * A planted sapling is defined as "on a visible drip line, at a planting-rhythm position".
   Where a drip line is buried or missing, a surviving sapling there is reported as
   between-line vegetation.
 * Empty spots are inferred only for gaps of 1.5–4.5 plant spacings; longer gaps (cross lanes,
-  line ends) are not filled.
+  line ends) are not filled. A plant up to 0.75 m from the expected spot (and 0.6 m from the
+  drip line) fills it, so a weed right next to a dead sapling can hide an empty spot.
+* Drip lines with fewer than half the usual plants per line are treated as edge or feeder
+  pipes without a planting row.
 * Plant outlines cover plant plus pit core. `canopy_area_m2` (NDVI-green pixels) is the
   better measure of living canopy.
 * `detection_confidence` is a heuristic, not a probability.

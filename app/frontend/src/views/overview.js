@@ -59,7 +59,7 @@ export function renderOverview(el, s) {
   const worst = [...s.lineAgg].filter((l) => l.n >= 10).sort((a, b) => a.score - b.score).slice(0, 5);
 
   const steps = [
-    { k: "Planting spots", v: expected, d: `expected from the planting rhythm of ${st.planting_lines} drip lines`, share: 1 },
+    { k: "Planting spots", v: expected, d: `expected along ${st.planting_lines} planting lines`, share: 1 },
     { k: "Plants located", v: st.planted_positions, d: `${fmt.pct(st.planted_positions / expected, 1)} of spots · ${fmt.int(st.inferred_missing_positions)} spots empty`, share: st.planted_positions / expected },
     { k: "Green canopy", v: st.green_canopy_planted, d: `${fmt.pct(st.green_canopy_planted / st.planted_positions, 1)} of located plants are green`, share: st.green_canopy_planted / expected },
     { k: `Identified as ${species.split(" ")[0]}`, v: st.planted_identified_as_species, d: `${fmt.pct(st.planted_identified_as_species / st.planted_positions, 1)} of located plants · experimental`, share: st.planted_identified_as_species / expected },
@@ -76,7 +76,7 @@ export function renderOverview(el, s) {
           where it is, what it is, and how it is doing.</p>
         <div class="facts">
           <span class="chip">${fmt.n(st.surveyed_area_ha, 2)} ha surveyed</span>
-          <span class="chip">${st.planting_lines} drip lines · ${fmt.n(st.line_spacing_m, 1)} m apart</span>
+          <span class="chip">${st.planting_lines} planting lines · ${fmt.n(st.line_spacing_m, 1)} m apart</span>
           <span class="chip">RGB ${fmt.n(s.summary.data.rgb.pixel_size_m * 1000, 0)} mm · NDVI ${fmt.n(s.summary.data.ndvi.pixel_size_m * 100, 1)} cm</span>
           <span class="chip">Processed ${esc(s.summary.processing_date)}</span>
         </div>

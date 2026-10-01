@@ -19,7 +19,7 @@ export function renderMethod(el, s) {
         <div><div class="eyebrow">Input</div><h3>Drone RGB + NDVI</h3>
           <p>An RGB orthomosaic (${fmt.n(s.summary.data.rgb.pixel_size_m * 1000, 0)} mm) and an NDVI raster (${fmt.n(s.summary.data.ndvi.pixel_size_m * 100, 1)} cm) in ${esc(s.summary.data.crs)}.
           The two are put on one grid and NDVI is co-registered to the RGB content (they were offset by up to 7 cm).</p>
-          <ul><li>${st.planting_lines} drip lines found, ${fmt.n(st.line_spacing_m, 2)} m apart; these are the planting lines.</li></ul></div>
+          <ul><li>${st.drip_lines ?? st.planting_lines} drip lines found, ${fmt.n(st.line_spacing_m, 2)} m apart; ${st.planting_lines} of them carry a planting row (edge and feeder pipes do not).</li></ul></div>
         ${fig("field_ndvi", "NDVI of the survey")}
       </div>
 

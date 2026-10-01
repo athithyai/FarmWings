@@ -35,12 +35,12 @@ A 2.66 ha drip-irrigated revegetation block planted with *Rhanterium epapposum*,
 
 | | |
 |---|---|
-| **Planting spots** (from the planting rhythm of 112 drip lines, 2.0 m apart) | **5,719** |
-| **Plants located** | **5,662** (99.0%) · 57 spots empty |
-| **Green living canopy** | **5,075** (89.6% of located plants) |
-| **No green canopy** (dry, dormant or dead: field check) | **587** |
-| **Identified as *Rhanterium epapposum*** *(experimental)* | **5,265** (93.0%) |
-| **Health** *(experimental, 5 unsupervised condition groups)* | Very good 871 · Good 1,507 · Fair 779 · Poor 1,425 · Very poor 1,080 |
+| **Planting spots** (98 planting lines, 2.0 m apart; installation record: 5,684) | **5,682** |
+| **Plants located** | **5,657** (99.6%) · 25 spots empty |
+| **Green living canopy** | **5,083** (89.9% of located plants) |
+| **No green canopy** (dry, dormant or dead: field check) | **574** |
+| **Identified as *Rhanterium epapposum*** *(experimental)* | **5,285** (93.4%) |
+| **Health** *(experimental, 5 unsupervised condition groups)* | Very good 868 · Good 1,664 · Fair 808 · Poor 1,346 · Very poor 971 |
 
 <table>
 <tr>
@@ -77,7 +77,7 @@ flowchart LR
 
 | Stage | Models | Method | Output |
 |---|---|---|---|
-| **1 · Detection** | **SAM 2.1** hiera-large (Meta) | RGB darkness + NDVI candidates → SAM 2.1 outlines on 1.2 cm imagery; an NDVI recall pass catches green saplings the first pass missed; objects are assigned to visible drip lines and a **planting-rhythm fit** keeps one plant per planting spot | plant outline, confidence, planting line, empty spots |
+| **1 · Detection** | **SAM 2.1** hiera-large (Meta) | RGB darkness + NDVI candidates → SAM 2.1 outlines on 1.2 cm imagery; an NDVI recall pass catches green saplings the first pass missed; objects are assigned to visible drip lines that carry a planting row (edge and feeder pipes do not) and a **planting-rhythm fit** keeps one plant per planting spot; a spot is only called empty when no plant or green NDVI patch sits within 0.75 m of it | plant outline, confidence, planting line, empty spots |
 | **2 · Identification** *(experimental)* | **DINOv3 ViT-L SAT-493M** (Meta, pretrained on 493 M satellite images) + **logistic-regression classifier** | Crown crop (drip line removed) → DINOv3 embedding + NDVI / colour / shape → classifier trained on labels from the planting layout | species vs other vegetation, confidence |
 | **3 · Health** *(experimental)* | **DINOv3 ViT-L SAT-493M** + **Gaussian mixture model** (unsupervised) | Crown embedding (PCA 16) + six NDVI / colour indicators → Gaussian mixture, K chosen by BIC → groups ranked by NDVI and green canopy; green canopy = NDVI ≥ 0.20 above the plant's own soil | condition group, score, canopy area |
 
@@ -106,13 +106,13 @@ Every result carries the model and version that produced it. Details: [docs/mode
 There is no field-verified plant list, so accuracy was checked in two independent ways:
 
 - **Project installation record** (5,684 planting points, used as a *reference*, not as ground truth):
-  **99.1%** of FarmWings plants sit on a recorded spot, **98.7%** of recorded spots have a FarmWings plant,
-  median position difference **5.5 cm**.
+  **99.5%** of FarmWings plants sit on a recorded spot, **99.0%** of recorded spots have a FarmWings plant,
+  median position difference **5.6 cm**. FarmWings counts 5,682 planting spots on 98 planting lines; the record has 5,684.
 - **Visual audits** of the 6 mm imagery wherever the two disagree. About half of the spots the reference
   marks as planted but FarmWings leaves empty show no living plant at all. And where the reference marks
   a plant "not detected", FarmWings usually finds the planting pit and reports it as *no green canopy*.
 
-Identification: spatial cross-validation AUC **0.991**. Health: groups stable on resampling (ARI **0.82**) and
+Identification: spatial cross-validation AUC **0.992**. Health: groups stable on resampling (ARI **0.81**) and
 consistent with a transparent NDVI/RGB vigour index (ρ **0.92**).
 *Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a laboratory disease diagnosis.*
 

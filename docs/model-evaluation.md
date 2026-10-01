@@ -19,7 +19,7 @@ Imagery: RGB 6 mm, NDVI 2.4 cm. This scale rules out most published tree and pal
 
 **Final method** (`detect_plants.py`, `detect_lines.py`):
 1. **Drip lines**: black top-hat of brightness, dominant orientation, rotated column profiles
-   per 9.4 m block, tracking. Pilot: 112 lines, 1.998 m spacing. A per-location visibility
+   per 9.4 m block, tracking. Pilot: 112 drip lines, 1.998 m spacing. A per-location visibility
    score (line vs adjacent soil) keeps only *visible* drip lines as planting lines.
 2. **Candidates**: robust z of RGB darkness (drip lines erased by grey closing) + robust z of
    NDVI above local soil; local maxima.
@@ -32,16 +32,22 @@ Imagery: RGB 6 mm, NDVI 2.4 cm. This scale rules out most published tree and pal
    planting spot using its evidence (confidence, NDVI, closeness to the line). Touching
    fragments merge; vegetation between spots is kept as between-line vegetation; drip-pipe
    segments (dark, elongated along the line, not green) are rejected.
-6. **Empty spots**: gaps of 1.5–4.5 spacings between planted plants are reported as expected
-   positions without a plant, unless a vegetated object sits right there.
+6. **Planting rows only**: a drip line holding fewer than half the median number of plants per
+   line carries no planting row (boundary and feeder pipes along the block edge); its objects
+   are between-line vegetation. Pilot: 5 of 112 drip lines (L002, L005, L086, L108, L110).
+7. **Empty spots**: gaps of 1.5–4.5 spacings between planted plants are expected positions. A
+   spot is reported empty only when no plant is there: a vegetated object within 0.75 m of the
+   spot and 0.6 m of the drip line (saplings are not always exactly on the line) or an
+   unoutlined green NDVI patch (NDVI ≥ soil + 0.20, ≥ 0.01 m²) fills it instead.
 
-**Result (Pilot):** 5,662 planted saplings, 57 empty spots (5,719 planting spots), 2,620
-between-line objects.
+**Result (Pilot):** 98 planting lines, 5,657 planted saplings, 25 empty spots (5,682 planting
+spots; the installation record has 5,684), 2,618 between-line objects.
 
 **Checks.** No field-verified plant list exists. Two independent checks were used:
 * The **project installation record** (5,684 planting points, not ground truth, used as a
-  reference only): 99.1% of FarmWings plants lie within 0.6 m of a recorded point, 98.7% of
-  recorded points have a FarmWings plant, median offset 5.5 cm. The rhythm settings gave the
+  reference only): 99.5% of FarmWings plants lie within 0.6 m of a recorded point, 99.0% of
+  recorded points have a FarmWings plant, median offset 5.6 cm. Every planting line has the
+  same number of planting spots as the record. The rhythm settings gave the
   same result across a sensitivity sweep (F1 0.987–0.990), so the rule is not tuned to one
   setting.
 * **Visual audits** of 6 mm crops where the two disagree: about half of the recorded points
@@ -67,7 +73,7 @@ drip line is inpainted out of every crop so the model cannot learn "line = plant
 | NDVI + RGB indices + geometry only | 0.981 |
 | DINOv2-base crown crop + tabular | 0.992 |
 | CLIP ViT-L/14 crown crop + tabular | 0.991 |
-| **DINOv3 SAT-493M crown crop + tabular** | **0.993** (final plant set: 0.991) |
+| **DINOv3 SAT-493M crown crop + tabular** | **0.993** (final plant set: 0.992) |
 
 Selected: DINOv3 SAT-493M crown embedding + NDVI/RGB/geometry → logistic regression. Below
 0.7 confidence a plant is Unclassified. When a survey has too few weak labels (no visible
@@ -90,13 +96,13 @@ are no field health labels. The health model is therefore **unsupervised**:
 
 | Group (Pilot) | Plants | Median NDVI | Green canopy | Without green canopy |
 |---|---|---|---|---|
-| Very good | 871 | 0.37 | 1,047 cm² | 0% |
-| Good | 1,507 | 0.26 | 724 cm² | 0% |
-| Fair | 779 | 0.23 | 323 cm² | 11% |
-| Poor | 1,425 | 0.21 | 423 cm² | 2% |
-| Very poor | 1,080 | 0.17 | 56 cm² | 44% |
+| Very good | 868 | 0.36 | 983 cm² | 0% |
+| Good | 1,664 | 0.27 | 757 cm² | 0% |
+| Fair | 808 | 0.22 | 256 cm² | 13% |
+| Poor | 1,346 | 0.21 | 429 cm² | 2% |
+| Very poor | 971 | 0.17 | 56 cm² | 45% |
 
-Stability on 80% resamples: ARI 0.82. Agreement with a transparent vigour index (weighted
+Stability on 80% resamples: ARI 0.81. Agreement with a transparent vigour index (weighted
 robust z of the same indicators): Spearman ρ 0.92.
 
 *Plant health is inferred from RGB and NDVI remote-sensing indicators and is not a laboratory

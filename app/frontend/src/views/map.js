@@ -163,7 +163,7 @@ function renderLayerPanel() {
     <div class="layer-group"><div class="group-label">Show</div>
       ${chk("gaps", "Empty planting spots", `${fmt.int(st.inferred_missing_positions)} expected, no plant`)}
       ${chk("between", "Between-line vegetation", "weeds / annuals")}
-      ${chk("lines", "Drip lines", `${st.planting_lines} detected`)}
+      ${chk("lines", "Drip lines", `${st.drip_lines ?? st.planting_lines} detected, ${st.planting_lines} planted`)}
     </div>
     <div class="layer-group"><div class="group-label">Imagery</div>
       ${chk("rgb", "RGB orthomosaic", `${fmt.n(s.summary.data.rgb.pixel_size_m * 1000, 0)} mm`)}

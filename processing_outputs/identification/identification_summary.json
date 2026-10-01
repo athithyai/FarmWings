@@ -8,27 +8,27 @@
     "Unclassified"
   ],
   "min_confidence": 0.7,
-  "n_plants": 8282,
+  "n_plants": 8275,
   "class_counts": {
-    "Other vegetation": 2749,
-    "Rhanterium epapposum (planted)": 5330,
-    "Unclassified": 203
+    "Other vegetation": 2735,
+    "Rhanterium epapposum (planted)": 5345,
+    "Unclassified": 195
   },
-  "identified_fraction": 0.9754890123158657,
+  "identified_fraction": 0.9764350453172206,
   "weak_labels": {
-    "planted": 5018,
-    "other": 2620,
-    "unlabelled": 644
+    "planted": 5024,
+    "other": 2618,
+    "unlabelled": 633
   },
   "trained_on": "this survey (weak labels from the planting layout)",
   "spatial_cv": {
     "folds": 5,
     "block_m": 25.0,
-    "roc_auc": 0.9907351853936515,
-    "balanced_accuracy": 0.9772766133522373
+    "roc_auc": 0.9922314829232214,
+    "balanced_accuracy": 0.9796966919367631
   },
   "label_agreement_on_unlabelled": {
-    "on_line_unlabelled_predicted_palm": 0.5822981366459627
+    "on_line_unlabelled_predicted_planted": 0.5955766192733017
   },
   "processing_date": "2026-10-01"
 }

@@ -45,8 +45,12 @@ BOX_HALF = 24          # px (~0.57 m) - half side of the SAM box prompt around a
 MIN_AREA_M2, MAX_AREA_M2 = 0.010, 1.4   # ~11 cm .. ~1.3 m equivalent diameter (fine saplings)
 BETWEEN_MIN_AREA_M2 = 0.02              # between-line objects must be at least this large
 MERGE_M = 1.0          # planted objects closer than this along a line are one planting position
+MIN_ROW_SHARE = 0.5    # a planting line holds at least this share of the median plants per line (edge / feeder pipes do not)
 TOUCH_M = 0.10         # fragments this close to the main plant outline are joined to it
-PROMOTE_M = 0.40      # vegetated object within this of an expected (gap) spot becomes its plant
+PROMOTE_M = 0.75      # a green object / NDVI patch this close to an expected (empty) spot is its plant
+FILL_MAX_OFFLINE_M = 0.60   # ... when it sits at most this far from the drip line (lines are ~2 m apart)
+FILL_DNDVI = 0.20     # green NDVI patch: NDVI at least this much above the local soil (health canopy rule)
+FILL_MIN_GREEN_M2 = 0.01    # smallest green patch that fills an empty spot
 PIPE_MIN_ELONGATION, PIPE_MAX_ANGLE, PIPE_MAX_NDVI_Z = 2.0, 20.0, 3.0
 RHYTHM_TOL = 0.30     # max deviation from a whole number of plant spacings between chosen plants
 RHYTHM_PENALTY = 2.0  # score penalty per spacing of deviation
@@ -498,6 +502,27 @@ def merge_planting_positions(gdf):
     return out
 
 
+def demote_short_lines(gdf):
+    """Drip lines that carry no planting row (boundary and feeder pipes along the block edge)
+    hold only a few plant-like objects. A line with fewer planted positions than MIN_ROW_SHARE x
+    the median per line is not a planting line: its objects become between-line vegetation
+    when vegetated, else they are dropped. Returns (gdf, demoted line ids)."""
+    counts = gdf[gdf.on_planting_line].groupby("line_idx").size()
+    if len(counts) < 3:
+        return gdf, []
+    short = counts[counts < MIN_ROW_SHARE * counts.median()].index
+    m = (gdf.on_planting_line & gdf.line_idx.isin(short)).values
+    if not m.any():
+        return gdf, []
+    vegetated = ((np.nan_to_num(gdf.ndvi_anomaly_z.values.astype(float), nan=-9) >= OFFLINE_MIN_ZN)
+                 | (gdf.detection_source.values == SOURCE_NDVI)) & (gdf.area_m2.values >= BETWEEN_MIN_AREA_M2)
+    gdf = gdf.copy()
+    gdf.loc[m, "on_planting_line"] = False
+    gdf.loc[m, "position_type"] = "Between lines"
+    gdf = gdf[~(m & ~vegetated)]
+    return gdf, [f"L{int(i) + 1:03d}" for i in short]
+
+
 def _join(group, unary_union):
     best = max(group, key=lambda r: r.detection_confidence)
     row = best._asdict()
@@ -570,9 +595,20 @@ def inferred_gaps(gdf, lines, transform):
     """Planting positions with no detected plant, inferred along each line from the local
     spacing: a gap between consecutive planted positions of 1.5-4.5x the median spacing holds
     round(gap / spacing) - 1 missing plants. Longer gaps (cross lanes, line ends, buried line
-    stretches) are not filled."""
+    stretches) are not filled.
+
+    Saplings are not always exactly on the drip line or the rhythm, so before a spot is called
+    empty it is checked for a plant slightly off the expected position:
+      1. a detected vegetated object within PROMOTE_M of the spot and FILL_MAX_OFFLINE_M of the
+         drip line, closer to this spot than to a planted neighbour, becomes the spot's plant;
+      2. otherwise a green NDVI patch there (NDVI >= local soil + FILL_DNDVI, >= FILL_MIN_GREEN_M2)
+         that no object covers is outlined from NDVI and added as the spot's plant.
+    Returns (gdf with promotions and additions, gaps)."""
     import geopandas as gpd
-    from shapely.geometry import Point
+    import rasterio
+    from rasterio.windows import Window
+    from scipy.spatial import cKDTree
+    from shapely.geometry import Point, Polygon
     pl = gdf[gdf.on_planting_line]
     diffs = []
     for _, g in pl.groupby("line_idx"):
@@ -581,12 +617,80 @@ def inferred_gaps(gdf, lines, transform):
     diffs = np.array(diffs)
     core = diffs[(diffs > 1.0) & (diffs < 3.5)]
     spacing = float(np.median(core)) if len(core) else 2.0
-    from scipy.spatial import cKDTree
     others = gdf[~gdf.on_planting_line]
     oc = others.geometry.centroid
     tree = cKDTree(np.c_[oc.x.values, oc.y.values]) if len(others) else None
-    promoted = set()
+    pcen = pl.geometry.centroid
+    ptree = cKDTree(np.c_[pcen.x.values, pcen.y.values])
+    all_geoms = list(gdf.geometry.values)
+    nd_src = rasterio.open(OUT / "aligned" / "ndvi_coreg.tif")
+    promoted, added = set(), []
     pts, attrs = [], []
+
+    def closer_to_spot(cx, cy, x, y):
+        dn, _ = ptree.query([cx, cy])
+        return np.hypot(cx - x, cy - y) < dn
+
+    def green_patch(x, y, li):
+        """Largest green NDVI patch near (x, y) that no object covers, as a new plant row."""
+        r0, c0 = rasterio.transform.rowcol(transform, x, y)
+        half = int(round(1.4 / PIXEL_M))
+        win = Window(c0 - half, r0 - half, 2 * half + 1, 2 * half + 1)
+        a = nd_src.read(1, window=win, boundless=True, fill_value=-9).astype(np.float32)
+        a[a < -2] = np.nan
+        yy, xx = np.mgrid[-half:half + 1, -half:half + 1] * PIXEL_M
+        rr = np.hypot(yy, xx)
+        ring = a[(rr >= 0.8) & (rr <= 1.4)]
+        ring = ring[np.isfinite(ring)]
+        if len(ring) < 50:
+            return None
+        soil = float(np.median(ring))
+        mad = float(np.median(np.abs(ring - soil))) * 1.4826 + 1e-3
+        green = (np.nan_to_num(a, nan=-9) >= soil + FILL_DNDVI).astype(np.uint8)
+        green = cv2.morphologyEx(green, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+        n, cc, st, cen = cv2.connectedComponentsWithStats(green, connectivity=8)
+        best = None
+        for k in range(1, n):
+            area = st[k, 4] * PIXEL_M ** 2
+            if not (FILL_MIN_GREEN_M2 <= area <= MAX_AREA_M2):
+                continue
+            ccol, crow = cen[k][0] + c0 - half, cen[k][1] + r0 - half
+            px, py = rasterio_xy(transform, crow, ccol)
+            if np.hypot(px - x, py - y) > PROMOTE_M or not closer_to_spot(px, py, x, y):
+                continue
+            li_k, d_k, al_k = lines.nearest(np.array([crow]), np.array([ccol]))
+            if int(li_k[0]) != int(li) or abs(d_k[0]) * PIXEL_M > FILL_MAX_OFFLINE_M:
+                continue
+            if best is None or area > best[1]:
+                best = (k, area, float(al_k[0]), float(d_k[0]))
+        if best is None:
+            return None
+        k, area, al, dpx = best
+        mask = ndi.binary_fill_holes(cc == k).astype(np.uint8)
+        _, props = mask_shape_ok(mask, 1, 0.0, 99.0)
+        if props is None:
+            return None
+        cnt = props["contour"][:, 0, :].astype(float)
+        xs, ys = rasterio.transform.xy(transform, cnt[:, 1] + r0 - half, cnt[:, 0] + c0 - half, offset="center")
+        poly = Polygon(np.c_[xs, ys]).buffer(0)
+        if poly.is_empty:
+            return None
+        if poly.geom_type == "MultiPolygon":
+            poly = max(poly.geoms, key=lambda q: q.area)
+        poly = poly.simplify(0.003)
+        if any(poly.intersects(g) for g in all_geoms if g.distance(poly) < 0.05):
+            return None          # an existing object covers this green patch
+        zmax = float((np.nanmax(np.where(cc == k, a, np.nan)) - soil) / mad)
+        conf = float(np.sqrt(0.5 * (1.0 - np.exp(-max(zmax - 3.0, 0.0) / 2.5))))
+        return {"line_idx": int(li), "along_px": al, "line_id": f"L{int(li) + 1:03d}",
+                "dist_to_line_m": round(dpx * PIXEL_M, 3), "on_planting_line": True, "position_type": "Planting line",
+                "area_m2": round(poly.area, 4), "equiv_diameter_m": round(2 * np.sqrt(poly.area / np.pi), 3),
+                "perimeter_m": round(poly.length, 3), "solidity": round(props["solidity"], 3),
+                "elongation": round(props["elongation"], 3), "candidate_z": np.nan, "darkness_z": np.nan,
+                "ndvi_anomaly_z": round(zmax, 2), "sam_iou": None, "core_found": False,
+                "detection_source": SOURCE_NDVI, "outline": "NDVI patch", "detection_confidence": round(conf, 3),
+                "drip_line_visibility": np.nan, "n_parts": 1, "filled_gap": True, "geometry": poly}
+
     for li, g in pl.groupby("line_idx"):
         s = np.sort(g.along_px.values) * PIXEL_M
         for a, b in zip(s[:-1], s[1:]):
@@ -599,26 +703,40 @@ def inferred_gaps(gdf, lines, transform):
                     xr = np.interp(yr, ys_t, xs_t)
                     row, col = lines.to_pix(np.array([yr]), np.array([xr]))
                     x, y = rasterio_xy(transform, row[0], col[0])
-                    # a vegetated object right at the expected spot is the plant for that spot
+                    # 1. a vegetated object near the expected spot, close to the drip line
                     if tree is not None:
-                        near = [j for j in tree.query_ball_point([x, y], PROMOTE_M) if others.index[j] not in promoted]
+                        near = [q for q in tree.query_ball_point([x, y], PROMOTE_M)
+                                if others.index[q] not in promoted
+                                and abs(others.dist_to_line_m.values[q]) <= FILL_MAX_OFFLINE_M
+                                and closer_to_spot(oc.x.values[q], oc.y.values[q], x, y)]
                         if near:
-                            j = min(near, key=lambda q: np.hypot(oc.x.values[q] - x, oc.y.values[q] - y))
-                            promoted.add(others.index[j])
+                            q = min(near, key=lambda q: np.hypot(oc.x.values[q] - x, oc.y.values[q] - y))
+                            promoted.add(others.index[q])
                             continue
+                    # 2. a green NDVI patch nobody outlined
+                    new = green_patch(x, y, li)
+                    if new is not None:
+                        added.append(new)
+                        all_geoms.append(new["geometry"])
+                        continue
                     pts.append(Point(x, y))
                     attrs.append({"line_id": f"L{int(li) + 1:03d}", "status": "Not detected (inferred)",
                                   "gap_m": round(gap, 2)})
+    nd_src.close()
     if promoted:
         idx = list(promoted)
         gdf.loc[idx, "on_planting_line"] = True
         gdf.loc[idx, "position_type"] = "Planting line"
         gdf.loc[idx, "filled_gap"] = True
+    if added:
+        gdf = gpd.GeoDataFrame(pd_concat([gdf, gpd.GeoDataFrame(added, geometry="geometry", crs=gdf.crs)]),
+                               geometry="geometry", crs=gdf.crs)
     out = gpd.GeoDataFrame(attrs, geometry=pts, crs=gdf.crs) if pts else \
         gpd.GeoDataFrame({"line_id": [], "status": [], "gap_m": []}, geometry=[], crs=gdf.crs)
     out.attrs["spacing_m"] = round(spacing, 3)
     out.attrs["promoted"] = len(promoted)
-    return out
+    out.attrs["added_from_ndvi"] = len(added)
+    return gdf, out
 
 
 def pipe_segments(raw, lines, transform) -> np.ndarray:
@@ -689,9 +807,18 @@ def finalize(raw, cand_stats: dict) -> dict:
     gdf = gdf[keep]
     n_before_merge = int(gdf.on_planting_line.sum())
     gdf = merge_planting_positions(gdf)
+    gdf, edge_lines = demote_short_lines(gdf)
     gdf = gdf.sort_values(["on_planting_line", "line_idx", "along_px"], ascending=[False, True, True]).reset_index(drop=True)
     gdf["filled_gap"] = False
-    gaps = inferred_gaps(gdf, lines, transform)
+    gdf, gaps = inferred_gaps(gdf, lines, transform)
+    new = gdf.drip_line_visibility.isna().values
+    if new.any():            # NDVI-patch plants added at empty spots: drip-line visibility there
+        R = np.load(OUT / "lines" / "line_evidence_rot.npy").astype(np.float32)
+        cn = gdf.geometry[new].centroid
+        rn, cn_ = rasterio.transform.rowcol(transform, cn.x.values, cn.y.values)
+        gdf.loc[new, "drip_line_visibility"] = np.round(lines.visibility(np.asarray(rn, float), np.asarray(cn_, float),
+                                                        np.sqrt(gdf.area.values[new] / np.pi) / PIXEL_M, R), 2)
+        del R
     gdf = gdf.sort_values(["on_planting_line", "line_idx", "along_px"], ascending=[False, True, True]).reset_index(drop=True)
     gdf.insert(0, "plant_id", [f"P{i + 1:05d}" for i in range(len(gdf))])
     cen = gdf.geometry.centroid
@@ -711,6 +838,9 @@ def finalize(raw, cand_stats: dict) -> dict:
                  "expected_planting_positions": n_planted + int(len(gaps)),
                  "along_line_spacing_m": gaps.attrs.get("spacing_m"),
                  "gaps_filled_by_vegetation": gaps.attrs.get("promoted", 0),
+                 "gaps_filled_by_ndvi_patch": gaps.attrs.get("added_from_ndvi", 0),
+                 "planting_lines_with_rows": int(gdf[gdf.on_planting_line].line_id.nunique()),
+                 "lines_without_planting_row": edge_lines,
                  "pipe_segments_rejected": int(pipe.sum())}
     cand_stats = {**cand_stats, **positions}
 
@@ -725,7 +855,8 @@ def finalize(raw, cand_stats: dict) -> dict:
         "by_source": {str(k): int(v) for k, v in gdf["detection_source"].value_counts().items()} if "detection_source" in gdf else {},
         "parameters": {"PEAK_Z": PEAK_Z, "PEAK_WINDOW_px": PEAK_WINDOW, "BG_SIGMA_px": BG_SIGMA,
                        "ON_LINE_PX": ON_LINE_PX, "OFFLINE_MIN_ZN": OFFLINE_MIN_ZN,
-                       "CENTROID_LINE_PX": CENTROID_LINE_PX, "RECALL_Z": RECALL_Z,
+                       "CENTROID_LINE_PX": CENTROID_LINE_PX, "RECALL_Z": RECALL_Z, "MIN_ROW_SHARE": MIN_ROW_SHARE,
+                       "PROMOTE_M": PROMOTE_M, "FILL_MAX_OFFLINE_M": FILL_MAX_OFFLINE_M, "FILL_MIN_GREEN_M2": FILL_MIN_GREEN_M2,
                        "RECALL_MIN_AREA_M2": RECALL_MIN_AREA_M2,
                        "RECALL_MIN_AREA_ON_LINE_M2": RECALL_MIN_AREA_ON_LINE_M2, "LINE_VISIBILITY_MIN": LINE_VISIBILITY_MIN,
                        "area_m2": [MIN_AREA_M2, MAX_AREA_M2], "between_min_area_m2": BETWEEN_MIN_AREA_M2,

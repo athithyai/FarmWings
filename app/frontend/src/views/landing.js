@@ -15,7 +15,7 @@ const STEPS = [
   {
     key: "detect", title: "Find every plant", images: ["detect"],
     text: "FarmWings finds the drip lines and outlines every plant with SAM 2.1. Each planting spot along a line gets exactly one plant. A spot where a plant should be but none grows is flagged as empty. Plants between the lines are counted separately.",
-    legend: [["Planted sapling", "#ffd166", "ring"], ["Between-line plant", "#5fd4e8", "ring"], ["Empty planting spot", "#ff6f91", "ring"], ["Drip line", "#ffffff", "line"]],
+    legend: [["Planted sapling", "#ffd166", "ring"], ["Between-line plant", "#5fd4e8", "ring"], ["Drip line", "#ffffff", "line"]],
   },
   {
     key: "identify", title: "Tell planted stock from weeds", images: ["identify"],
@@ -194,7 +194,7 @@ export function renderLanding(el) {
   fetch(new URL("data/summary.json", document.baseURI)).then((r) => r.json()).then((s) => {
     const v = s.validation;
     const st = s.stats;
-    el.querySelector("#val-note").textContent = `A ${fmt.n(st.surveyed_area_ha, 1)} ha revegetation block, ${fmt.int(st.expected_planting_positions)} planting spots on ${st.planting_lines} drip lines. The project's own installation record (${fmt.int(v.reference_points)} points) was used as a reference, not as ground truth.`;
+    el.querySelector("#val-note").textContent = `A ${fmt.n(st.surveyed_area_ha, 1)} ha revegetation block, ${fmt.int(st.expected_planting_positions)} planting spots on ${st.planting_lines} planting lines. The project's own installation record (${fmt.int(v.reference_points)} points) was used as a reference, not as ground truth.`;
     el.querySelector("#proof").innerHTML = [
       [fmt.pct(v.precision, 1), "of FarmWings plants sit on a recorded planting point"],
       [fmt.pct(v.recall, 1), "of recorded points have a FarmWings plant"],

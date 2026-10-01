@@ -158,7 +158,8 @@ def build_summary(comb) -> dict:
         "avg_health_score_planted": float(planted.health_score.mean()) if "health_score" in planted else None,
         "avg_mean_ndvi_planted": float(planted.mean_ndvi.mean()) if "mean_ndvi" in planted else None,
         "field_soil_ndvi_median": hea["field_median"].get("bg_ndvi"),
-        "planting_lines": lin["n_lines"], "line_spacing_m": lin["median_line_spacing_m"],
+        "planting_lines": det.get("planting_lines_with_rows", lin["n_lines"]), "drip_lines": lin["n_lines"],
+        "line_spacing_m": lin["median_line_spacing_m"],
         "planted_density_per_ha": len(planted) / area_ha,
         "surveyed_area_ha": area_ha,
         "ndvi_recall_detections": int((comb.get("detection_source") == "NDVI vegetation patch").sum())
