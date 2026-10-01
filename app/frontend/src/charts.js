@@ -36,8 +36,9 @@ function bindTip(node, html) {
 
 const fmtInt = (v) => v.toLocaleString("en-US");
 
-/** items: [{label, value, color, note?}] - horizontal bars with direct labels. */
-export function barChart(container, items, { total, width = 320, barH = 16, gap = 8, labelW = 118 } = {}) {
+/** items: [{label, value, color, note?, key?}] - horizontal bars with direct labels.
+ *  onPick(item) makes bars clickable; selected (an item key or label) dims the other bars. */
+export function barChart(container, items, { total, width = 320, barH = 16, gap = 8, labelW = 118, onPick, selected } = {}) {
   container.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.className = "chart";
@@ -51,7 +52,10 @@ export function barChart(container, items, { total, width = 320, barH = 16, gap 
     const y = i * (barH + gap);
     const w = Math.max(d.value > 0 ? 3 : 0, (d.value / max) * plotW);
     const g = el("g", {}, svg);
-    el("text", { x: 0, y: y + barH / 2 + 4 }, g).textContent = d.label;
+    const key = d.key ?? d.label;
+    if (selected != null && selected !== key) g.setAttribute("opacity", "0.28");
+    if (onPick) g.style.cursor = "pointer";
+    el("text", { x: 0, y: y + barH / 2 + 4, ...(selected === key ? { class: "sel" } : {}) }, g).textContent = d.label;
     // bar anchored at the baseline: square left end, 4px rounded data end
     const x0 = labelW;
     const r = Math.min(4, w / 2);
@@ -62,7 +66,8 @@ export function barChart(container, items, { total, width = 320, barH = 16, gap 
     const pct = sum ? ` · ${((d.value / sum) * 100).toFixed(0)}%` : "";
     el("text", { x: x0 + w + 6, y: y + barH / 2 + 4, class: "v" }, g).textContent = `${fmtInt(d.value)}${pct}`;
     const hit = el("rect", { x: 0, y: y - gap / 2, width, height: barH + gap, class: "hit" }, g);
-    bindTip(hit, `<b>${d.label}</b><br>${fmtInt(d.value)} plants${pct}${d.note ? `<br><span class="muted">${d.note}</span>` : ""}`);
+    bindTip(hit, `<b>${d.label}</b><br>${fmtInt(d.value)} plants${pct}${d.note ? `<br><span class="muted">${d.note}</span>` : ""}${onPick ? '<br><span class="muted">Click to select</span>' : ""}`);
+    if (onPick) hit.addEventListener("click", () => { hideTip(); onPick(d); });
   });
   el("line", { x1: labelW, x2: labelW, y1: -2, y2: h, class: "base" }, svg);
   wrap.appendChild(svg);

@@ -1,5 +1,6 @@
 import { thumbStyle } from "../store.js";
 import { colorOf, esc, fmt, navigate } from "../ui.js";
+import { selQuery } from "../select.js";
 
 const PAGE = 50;
 const COLS = [
@@ -25,7 +26,7 @@ export function renderPlants(el, s, params) {
     <div class="page-head">
       <div><div class="eyebrow">Inventory</div><h1>Plants</h1>
         <p>Every detected object with its detection, identification and health results. Click a row for the plant page.</p></div>
-      <button class="btn" id="csv">Download CSV</button>
+      <span style="display:flex;gap:8px"><a class="btn primary" id="to-map" href="#/map">Show on map</a><button class="btn" id="csv">Download CSV</button></span>
     </div>
     <div class="filters">
       <label class="field">Search<input id="f-q" placeholder="Plant ID, e.g. P01234" value="${esc(state.q)}" /></label>
@@ -76,6 +77,10 @@ export function renderPlants(el, s, params) {
         }).join("")}
       </tr>`).join("") || `<tr><td colspan="${COLS.length + 1}" class="empty" style="padding:18px">No plants match these filters.</td></tr>`;
     el.querySelector("#count").textContent = `${fmt.int(rows.length)} plants · page ${state.page + 1} of ${pages}`;
+    // the same group on the map: the most specific filter becomes the map selection
+    const sel = state.health ? { kind: "health", value: state.health } : state.canopy ? { kind: "canopy", value: state.canopy }
+      : state.cls ? { kind: "ident", value: state.cls } : state.line ? { kind: "line", value: state.line } : null;
+    el.querySelector("#to-map").href = `#/map${sel ? `?${selQuery(sel)}` : ""}`;
     el.querySelector("#prev").disabled = state.page === 0;
     el.querySelector("#next").disabled = state.page >= pages - 1;
     el.querySelectorAll("th[data-k]").forEach((th) => {

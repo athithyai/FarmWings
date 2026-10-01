@@ -1,7 +1,8 @@
+// ARCHIVED with method.js; not shipped.
 // Model diagrams: how each of the three models turns imagery into a result. Used on the landing
 // page (generic) and in Methodology (with the survey's numbers). Plain HTML so they reflow to a
 // vertical flow on narrow screens.
-import { esc, fmt } from "./ui.js";
+import { esc, fmt } from "../ui.js";
 
 const HEALTH_DEFAULT = [
   { key: "Very good", color: "#12805a" }, { key: "Good", color: "#6cc79f" }, { key: "Fair", color: "#9a9994" },

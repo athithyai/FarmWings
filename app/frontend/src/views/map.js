@@ -3,6 +3,7 @@ import * as maplibregl from "maplibre-gl";
 import { tileUrl } from "../tiles.js";
 import { colorOf, countBy, esc, fmt, kv, mean, pip, ringAreaM2 } from "../ui.js";
 import { thumbStyle } from "../store.js";
+import { gapExpr, mapExpr, parseSel, plantsLink, sameSel, selColor, selLabel, selQuery, selStats } from "../select.js";
 
 const POLY_MINZOOM = 19.2;
 let map = null;
@@ -13,14 +14,24 @@ let selection = null;
 let drawMode = null;
 let draft = [];
 let pendingPlant = null;
+let focus = null;   // the selected group of plants (see select.js)
 
 const $ = (id) => document.getElementById(id);
 const emptyFC = () => ({ type: "FeatureCollection", features: [] });
 
 export function hideMap() { /* the map stays alive; nothing to tear down */ }
 
+const KIND_COLOR = { health: "health", canopy: "canopy", ident: "ident", attention: "canopy" };
+
 export function showMap(s, params) {
   pendingPlant = params.get("plant");
+  if (params.get("color")) colorBy = params.get("color");
+  const sel = parseSel(params);
+  if (sel) {
+    focus = sel;
+    if (KIND_COLOR[sel.kind]) colorBy = KIND_COLOR[sel.kind];
+    if (sel.kind === "gaps" || sel.kind === "attention") layers.gaps = true;
+  }
   if (!map) createMap(s);
   else if (current !== s) rebuild(s);
   else {
@@ -28,7 +39,9 @@ export function showMap(s, params) {
     focusPendingPlant();
   }
   renderLayerPanel();
-  if (!pendingPlant && !selection) renderDetailIntro();
+  applyVisibility();
+  if (pendingPlant) return;
+  if (focus) renderFocus(); else if (!selection) renderDetailIntro();
 }
 
 function createMap(s) {
@@ -48,6 +61,7 @@ function createMap(s) {
 function rebuild(s) {
   current = s;
   selection = null;
+  focus = null;
   $("map-loading").hidden = false;
   map.setStyle(buildStyle(s));
   map.once("style.load", () => {
@@ -145,6 +159,87 @@ function applyVisibility() {
   map.setPaintProperty("plant-fill", "fill-opacity", colorBy === "detection" ? 0 : 0.6);
   map.setPaintProperty("plant-line", "line-color", c);
   map.setPaintProperty("plant-pt", "circle-color", c);
+  applyFocus();
+}
+
+// Selected group: matching plants stay bright with a white ring, everything else fades back.
+function applyFocus() {
+  if (!map?.getLayer("plant-pt")) return;
+  const on = focus ? mapExpr(focus) : true;
+  const g = focus ? gapExpr(focus) : true;
+  const dimmed = (hi, lo) => (focus ? ["case", on, hi, lo] : hi);
+  map.setPaintProperty("plant-pt", "circle-opacity", dimmed(0.95, 0.12));
+  map.setPaintProperty("plant-pt", "circle-stroke-color", "#ffffff");
+  map.setPaintProperty("plant-pt", "circle-stroke-width", focus ? ["interpolate", ["linear"], ["zoom"], 17.5, 0, 18.5, ["case", on, 1.2, 0]] : 0);
+  map.setPaintProperty("plant-pt", "circle-radius", focus
+    ? ["interpolate", ["exponential", 2], ["zoom"], 15, ["case", on, 1.3, 0.4], 17, ["case", on, 2, 0.8], 18, ["case", on, 3, 1.8], 19.2, ["case", on, 5.5, 4.5]]
+    : ["interpolate", ["exponential", 2], ["zoom"], 15, 0.4, 17, 0.8, 18, 1.8, 19.2, 4.5]);
+  map.setPaintProperty("plant-fill", "fill-opacity", focus ? ["case", on, 0.75, 0.06] : (colorBy === "detection" ? 0 : 0.6));
+  map.setPaintProperty("plant-line", "line-opacity", dimmed(1, 0.15));
+  map.setPaintProperty("gaps", "circle-stroke-opacity", focus ? ["case", g, 1, 0.15] : 1);
+  map.setPaintProperty("gaps", "circle-stroke-width", focus && focus.kind !== "line" && g === true ? 3 : 2);
+}
+
+function setFocus(sel, zoom = false) {
+  focus = sel && !sameSel(sel, focus) ? sel : null;
+  if (focus && KIND_COLOR[focus.kind] && colorBy !== KIND_COLOR[focus.kind]) {
+    colorBy = KIND_COLOR[focus.kind];
+    $("layer-panel").querySelectorAll("input[name=colorby]").forEach((r) => { r.checked = r.value === colorBy; });
+  }
+  if (focus && (focus.kind === "gaps" || focus.kind === "attention") && !layers.gaps) {
+    layers.gaps = true;
+    const c = $("layer-panel").querySelector('input[data-layer="gaps"]');
+    if (c) c.checked = true;
+  }
+  const url = `#/map${focus ? `?${selQuery(focus)}` : ""}`;
+  history.replaceState(null, "", url);
+  applyVisibility();
+  renderLegend();
+  if (focus) { renderFocus(); if (zoom) zoomToFocus(); } else renderDetailIntro();
+}
+
+function zoomToFocus() {
+  const st = selStats(current, focus);
+  const pts = st.plants.map((p) => [p.lon, p.lat]).concat(current.gaps.features.filter(() => focus.kind === "gaps" || focus.kind === "attention").map((g) => g.geometry.coordinates));
+  if (!pts.length) return;
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
+  map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: 60, maxZoom: 21, duration: 900 });
+}
+
+function renderFocus() {
+  const s = current;
+  const st = selStats(s, focus);
+  const color = selColor(s, focus);
+  const isGaps = focus.kind === "gaps";
+  const big = isGaps ? st.gaps : st.n + (focus.kind === "attention" ? st.gaps : 0);
+  const unit = isGaps ? "empty planting spots" : focus.kind === "attention" ? "spots to visit" : "planted saplings";
+  const hc = st.health;
+  const showHealth = !isGaps && focus.kind !== "health" && st.n > 0;
+  $("map-detail").innerHTML = `
+    <div class="detail-title"><h2><span class="dot" style="background:${color};width:14px;height:14px"></span> ${esc(selLabel(s, focus))}</h2>
+      <button class="btn" id="focus-clear" title="Clear selection">✕</button></div>
+    <div class="focus-hero"><span class="v num">${fmt.int(big)}</span><span class="d">${unit}${isGaps ? "" : ` · ${fmt.pct(st.share, 1)} of all planted`}</span></div>
+    ${isGaps ? "" : `<div class="card">${kv([
+      ["Green canopy", `${fmt.int(st.green)} · ${fmt.pct(st.green / (st.n || 1))}`],
+      ["Mean NDVI", fmt.n(st.meanNdvi)],
+      ["Average green canopy", `${fmt.int(st.meanCanopyCm2)} cm²`],
+      ...(focus.kind === "attention" ? [["Without green canopy", fmt.int(st.n)], ["Empty spots", fmt.int(st.gaps)]] : []),
+      ...(focus.kind === "line" ? [["Empty spots on this line", fmt.int(st.gaps)]] : []),
+    ])}
+    ${showHealth ? `<div class="health-strip" style="margin-top:12px">${s.healthClasses.map((c) => `<span title="${esc(c.key)}: ${hc[c.key] || 0}" style="width:${((hc[c.key] || 0) / (st.n || 1)) * 100}%;background:${c.color}"></span>`).join("")}</div>` : ""}
+    </div>`}
+    ${focus.kind !== "line" && st.lines.length ? `<div class="card"><h3>Where they are</h3><p class="sub">Drip lines with the most · click to select a line</p>
+      <table class="mini click"><tbody>${st.lines.slice(0, 6).map((l) => `<tr data-line="${esc(l.line_id)}"><td><b>${esc(l.line_id)}</b></td>
+        <td class="n">${fmt.int(l.n)}</td><td style="width:45%"><div class="meter" style="margin:0"><span style="width:${(l.n / st.lines[0].n) * 100}%;background:${color}"></span></div></td></tr>`).join("")}</tbody></table></div>` : ""}
+    <div class="focus-actions">
+      <button class="btn primary" id="focus-zoom">Zoom to selection</button>
+      ${isGaps ? "" : `<a class="btn" href="${plantsLink(focus)}">List these plants</a>`}
+      <a class="btn" href="#/insights?${selQuery(focus)}">See in Insights</a>
+    </div>`;
+  $("focus-clear").onclick = () => setFocus(null);
+  $("focus-zoom").onclick = zoomToFocus;
+  $("map-detail").querySelectorAll("tr[data-line]").forEach((tr) => tr.addEventListener("click", () => setFocus({ kind: "line", value: tr.dataset.line }, true)));
 }
 
 // ------------------------------------------------------------------ layer panel + legend
@@ -157,8 +252,8 @@ function renderLayerPanel() {
     <div class="layer-group"><div class="group-label">Colour plants by</div>
       ${opt("detection", "Detection", `${fmt.int(st.planted_positions)} plants located`)}
       ${opt("canopy", "Canopy", "green vs no green canopy")}
-      ${opt("ident", "Identification <span class='badge'>Exp.</span>", "what plant it is")}
-      ${opt("health", "Health <span class='badge'>Exp.</span>", `${s.healthClasses.length} condition groups`)}
+      ${opt("ident", "Identification", "planted stock vs weeds")}
+      ${opt("health", "Health", `${s.healthClasses.length} condition groups`)}
     </div>
     <div class="layer-group"><div class="group-label">Show</div>
       ${chk("gaps", "Empty planting spots", `${fmt.int(st.inferred_missing_positions)} expected, no plant`)}
@@ -173,6 +268,7 @@ function renderLayerPanel() {
     <div class="legend" id="legend"></div>`;
   $("layer-panel").querySelectorAll("input[name=colorby]").forEach((r) => r.addEventListener("change", () => {
     colorBy = r.value;
+    if (focus && KIND_COLOR[focus.kind] && KIND_COLOR[focus.kind] !== colorBy) setFocus(null);
     applyVisibility();
     renderLegend();
   }));
@@ -187,26 +283,35 @@ function renderLayerPanel() {
 function renderLegend() {
   const s = current;
   const planted = s.list.filter((p) => p.position_type === "Planting line");
-  const row = (color, label, n, ring) => `<div class="row"><span class="sw ${ring ? "ring" : ""}" style="${ring ? `border-color:${color}` : `background:${color}`}"></span>${esc(label)}<span class="count">${n == null ? "" : fmt.int(n)}</span></div>`;
+  const row = (color, label, n, ring, sel) => {
+    const on = sel && sameSel(sel, focus);
+    const attr = sel ? ` data-kind="${esc(sel.kind)}" data-value="${esc(sel.value)}" role="button" tabindex="0" title="Click to select all ${esc(label.toLowerCase())}"` : "";
+    return `<div class="row ${sel ? "pick" : ""} ${on ? "on" : ""} ${focus && sel && !on ? "off" : ""}"${attr}><span class="sw ${ring ? "ring" : ""}" style="${ring ? `border-color:${color}` : `background:${color}`}"></span>${esc(label)}<span class="count">${n == null ? "" : fmt.int(n)}</span></div>`;
+  };
   let body = "";
   if (colorBy === "detection") body = `<h4>Detected plants</h4>${row("#ffd166", "Planted sapling", planted.length, true)}`;
   if (colorBy === "canopy") {
     const g = planted.filter((p) => p.living_canopy).length;
-    body = `<h4>Canopy</h4>${row("#8fd46b", "Green canopy", g)}${row("#e06a5a", "No green canopy", planted.length - g)}`;
+    body = `<h4>Canopy</h4>${row("#8fd46b", "Green canopy", g, false, { kind: "canopy", value: "green" })}${row("#e06a5a", "No green canopy", planted.length - g, false, { kind: "canopy", value: "none" })}`;
   }
   if (colorBy === "ident") {
     const c = countBy(planted, "plant_class");
-    body = `<h4>Identification</h4>${s.idClasses.map((x) => row(x.color, x.key, c[x.key] || 0)).join("")}`;
+    body = `<h4>Identification</h4>${s.idClasses.map((x) => row(x.color, x.key, c[x.key] || 0, false, { kind: "ident", value: x.key })).join("")}`;
   }
   if (colorBy === "health") {
     const c = countBy(planted, "health_class");
-    body = `<h4>Health</h4>${s.healthClasses.map((x) => row(x.color, x.key, c[x.key] || 0)).join("")}`;
+    body = `<h4>Health</h4>${s.healthClasses.map((x) => row(x.color, x.key, c[x.key] || 0, false, { kind: "health", value: x.key })).join("")}`;
   }
-  if (layers.gaps) body += row("#ff6f91", "Empty planting spot", s.gaps.features.length, true);
+  if (layers.gaps) body += row("#ff6f91", "Empty planting spot", s.gaps.features.length, true, { kind: "gaps", value: "" });
   if (layers.between) body += row("#5fd4e8", "Between-line vegetation", s.list.length - planted.length, true);
   if (layers.ndvi) body += `<div><h4>NDVI</h4><div class="ramp" style="background:linear-gradient(90deg,#a50026,#f46d43,#fee08b,#d9ef8b,#66bd63,#006837)"></div>
     <div class="ramp-labels"><span>≤ -0.05</span><span>0.25</span><span>≥ 0.55</span></div></div>`;
-  $("legend").innerHTML = body + `<p class="small muted" style="margin:6px 0 0">Outlines from zoom 19; dots below.</p>`;
+  $("legend").innerHTML = body + `<p class="small muted" style="margin:6px 0 0">${colorBy === "detection" ? "Colour by canopy, identification or health, then click a class to select it." : "Click a class to select those plants; click again to clear."}</p>`;
+  $("legend").querySelectorAll(".row.pick").forEach((r) => {
+    const pick = () => setFocus({ kind: r.dataset.kind, value: r.dataset.value }, false);
+    r.addEventListener("click", pick);
+    r.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+  });
 }
 
 // ------------------------------------------------------------------ details panel
@@ -215,7 +320,7 @@ function renderDetailIntro() {
   const st = s.summary.stats;
   $("map-detail").innerHTML = `
     <div class="detail-title"><h2>${esc(s.summary.project)}</h2></div>
-    <p class="muted" style="margin-top:0">Click a plant to inspect it, or select an area with <b>Polygon</b>, <b>Rectangle</b> or <b>Whole view</b>.</p>
+    <p class="muted" style="margin-top:0">Click a plant to inspect it, click a class in the legend to select all of them, or draw an area with <b>Polygon</b>, <b>Rectangle</b> or <b>Whole view</b>.</p>
     ${summaryCard(s.list.filter((p) => p.position_type === "Planting line"), "Whole survey")}
     <p class="small muted">${fmt.int(st.inferred_missing_positions)} empty planting spots (pink rings) · ${fmt.int(st.between_line_vegetation)} between-line objects.</p>`;
 }
@@ -252,7 +357,8 @@ function renderPlantCard(p) {
         ["Detection confidence", fmt.pct(p.detection_confidence)], ["Drip line", esc(p.line_id ?? "–")]])}
     </div></div>
     <p><button class="btn" id="back-intro">← Survey summary</button></p>`;
-  $("back-intro").addEventListener("click", () => { selectPlant(null); renderDetailIntro(); });
+  $("back-intro").textContent = focus ? `← ${selLabel(s, focus)}` : "← Survey summary";
+  $("back-intro").addEventListener("click", () => { selectPlant(null); if (focus) renderFocus(); else renderDetailIntro(); });
 }
 
 function selectPlant(id) {

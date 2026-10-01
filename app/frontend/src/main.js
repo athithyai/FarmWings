@@ -12,7 +12,6 @@ import { renderOverview } from "./views/overview.js";
 import { renderPlants } from "./views/plants.js";
 import { renderPlant } from "./views/plant.js";
 import { renderInsights } from "./views/insights.js";
-import { renderMethod } from "./views/method.js";
 import { renderAnalyze } from "./views/analyze.js";
 import { showMap, hideMap } from "./views/map.js";
 
@@ -21,8 +20,8 @@ const mapScreen = document.getElementById("map-screen");
 const header = document.querySelector(".appbar");
 
 // Public: landing + sign-in. Everything else needs a session (Google or demo).
-const WORKSPACE = new Set(["overview", "map", "plants", "insights", "method", "analyze"]);
-const TITLES = { overview: "Overview", plants: "Plants", insights: "Insights", method: "Methodology", analyze: "Analyze survey", projects: "Projects", signin: "Sign in" };
+const WORKSPACE = new Set(["overview", "map", "plants", "insights", "analyze"]);
+const TITLES = { overview: "Overview", plants: "Plants", insights: "Insights", analyze: "Analyze survey", projects: "Projects", signin: "Sign in" };
 
 function parse() {
   const h = (location.hash || "#/").slice(1);
@@ -104,6 +103,7 @@ async function route() {
     document.title = "Projects · FarmWings";
     return;
   }
+  if (name === "method") { navigate("#/overview"); return; }   // archived screen
   if (!WORKSPACE.has(name)) { navigate("#/"); return; }
 
   setMode("app");
@@ -120,8 +120,7 @@ async function route() {
   screen.innerHTML = "";
   if (name === "plants" && parts[1]) renderPlant(screen, s, decodeURIComponent(parts[1]));
   else if (name === "plants") renderPlants(screen, s, params);
-  else if (name === "insights") renderInsights(screen, s);
-  else if (name === "method") renderMethod(screen, s);
+  else if (name === "insights") renderInsights(screen, s, params);
   else if (name === "analyze") renderAnalyze(screen);
   else renderOverview(screen, s);
   document.title = `${name === "plants" && parts[1] ? decodeURIComponent(parts[1]) : TITLES[name]} · ${s.summary.project} · FarmWings`;

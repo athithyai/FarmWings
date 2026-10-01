@@ -1,5 +1,7 @@
+// ARCHIVED (2026-10-01): the Methodology screen is no longer part of the product. Kept for reference only;
+// it is not imported anywhere and not shipped in the build.
 import { esc, fmt } from "../ui.js";
-import { detectionFlow, flowLegend, healthFlow, identificationFlow } from "../diagrams.js";
+import { detectionFlow, flowLegend, healthFlow, identificationFlow } from "./diagrams.js";
 
 export function renderMethod(el, s) {
   const M = s.summary.models;

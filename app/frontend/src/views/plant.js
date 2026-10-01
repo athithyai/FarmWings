@@ -7,7 +7,6 @@ export function renderPlant(el, s, id) {
     el.innerHTML = `<div class="card"><h3>Plant ${esc(id)} not found</h3><p class="muted">It is not in the survey “${esc(s.summary.project)}”.</p><a class="btn" href="#/plants">Back to plants</a></div>`;
     return;
   }
-  const M = s.summary.models;
   const idx = s.list.findIndex((q) => q.plant_id === id);
   const prev = s.list[idx - 1];
   const next = s.list[idx + 1];
@@ -57,14 +56,14 @@ export function renderPlant(el, s, id) {
           <div class="card"><h3>1 · Detection</h3>
             ${kv([["Confidence", fmt.pct(p.detection_confidence)], ["Plant area", `${fmt.n(p.area_m2, 3)} m²`],
               ["Green canopy", `${fmt.int(p.canopy_area_m2 * 1e4)} cm²`], ["Drip line", `${esc(p.line_id ?? "–")} · ${fmt.n(Math.abs(p.dist_to_line_m), 2)} m`],
-              ["Found by", p.detection_source === "NDVI vegetation patch" ? "NDVI recall" : "RGB + NDVI"]])}
+              ["Seen in", p.detection_source === "NDVI vegetation patch" ? "NDVI" : "RGB + NDVI"]])}
             ${meter(p.detection_confidence)}
           </div>
-          <div class="card"><h3>2 · Identification <span class="badge">Exp.</span></h3>
+          <div class="card"><h3>2 · Identification</h3>
             ${kv([["Class", esc(p.plant_class)], ["Confidence", fmt.pct(p.identification_confidence)], ["P(planted stock)", fmt.n(p.p_planted)]])}
             ${meter(p.identification_confidence, colorOf(s.idClasses, p.plant_class))}
           </div>
-          <div class="card"><h3>3 · Health <span class="badge">Exp.</span></h3>
+          <div class="card"><h3>3 · Health</h3>
             ${p.health_class ? kv([["Condition", esc(p.health_class)], ["Health score", fmt.n(p.health_score)], ["Group probability", fmt.pct(p.health_confidence)]]) : '<p class="muted">Not graded (not a planted position).</p>'}
             ${p.health_score != null ? meter(p.health_score, hColor) : ""}
           </div>
@@ -73,8 +72,7 @@ export function renderPlant(el, s, id) {
               ["Soil around plant", fmt.n(p.bg_ndvi, 2)], ["Above soil", fmt.signed(p.ndvi_contrast, 2)], ["VARI · green cover", `${fmt.n(p.vari, 2)} · ${fmt.pct(p.green_fraction)}`]])}
           </div>
         </div>
-        <p class="small muted" style="margin:0">Models: ${esc(M.detection.name)} v${esc(M.detection.version)} · ${esc(M.identification.backbone)} v${esc(M.identification.version)} · health v${esc(M.health.version)}.
-          ${esc(M.health.disclaimer)}</p>
+        <p class="small muted" style="margin:0">Condition grades come from drone RGB and NDVI; they are not a laboratory disease diagnosis.</p>
       </div>
     </div>`;
 }

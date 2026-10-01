@@ -1,6 +1,5 @@
 // Public landing page: what FarmWings does, shown on one real patch of the Pilot field.
 import { esc, fmt } from "../ui.js";
-import { detectionFlow, flowLegend, healthFlow, identificationFlow } from "../diagrams.js";
 import { user } from "../session.js";
 
 const img = (n) => new URL(`showcase/${n}.webp`, document.baseURI).href;
@@ -14,17 +13,17 @@ const STEPS = [
   },
   {
     key: "detect", title: "Find every plant", images: ["detect"],
-    text: "FarmWings finds the drip lines and outlines every plant with SAM 2.1. Each planting spot along a line gets exactly one plant. A spot where a plant should be but none grows is flagged as empty. Plants between the lines are counted separately.",
+    text: "FarmWings AI reads the planting layout and outlines every plant to the centimetre. Each planting spot gets exactly one plant; a spot where a plant should be but none grows is flagged as empty. Weeds between the lines are counted separately.",
     legend: [["Planted sapling", "#ffd166", "ring"], ["Between-line plant", "#5fd4e8", "ring"], ["Drip line", "#ffffff", "line"]],
   },
   {
     key: "identify", title: "Tell planted stock from weeds", images: ["identify"],
-    text: "DINOv3, a vision model pretrained on 493 million satellite images, describes each plant crop. A classifier trained on the planting layout uses that description, with NDVI, colour and shape, to separate the planted stock from weeds and other vegetation. The species name comes from the planting record: at sapling size the imagery cannot confirm the species.",
+    text: "Every plant is recognised by how it looks, how green it is and its shape: planted stock or a weed. Your planting record gives the species; FarmWings confirms what actually grew.",
     legend: [["Planted stock", "#3987e5"], ["Other vegetation", "#d95926"], ["Unclassified", "#898781"]],
   },
   {
     key: "health", title: "Check every sapling's condition", images: ["health"],
-    text: "Saplings are grouped by how they look and how green they are, with no hand labels needed. A Gaussian mixture model groups the DINOv3 descriptions plus six NDVI and colour indicators. The groups are ranked from very good to very poor, so the field team knows where to look first.",
+    text: "Each sapling gets a condition grade, from very good to very poor, from its greenness, canopy and appearance. No field sampling needed: the team knows where to look first.",
     legend: HEALTH.map(([k, c]) => [k, c]),
   },
 ];
@@ -91,24 +90,19 @@ export function renderLanding(el) {
 
   <section class="l-sec alt" id="models">
     <div class="wrap">
-      <div class="l-head"><div class="eyebrow">The models</div><h2>Three models, one plant record</h2>
-        <p>Each result keeps the model that produced it. Open models, run on your own GPU or a cloud GPU.</p></div>
-      <div class="model-block">
-        <div class="mb-head"><span class="num">1</span><div><h3>Detection: where is each plant?</h3>
-          <p>SAM 2.1 outlines the plants; the drip lines and the planting rhythm decide which outline is the sapling in each planting spot.</p></div></div>
-        ${detectionFlow()}
+      <div class="l-head"><div class="eyebrow">FarmWings AI</div><h2>Three answers for every plant</h2>
+        <p>Built in-house for young plantations seen from the air.</p></div>
+      <div class="caps">
+        <div class="cap-card"><span class="cap-n num">01</span><h3>Where is it?</h3>
+          <p>Every sapling located and outlined to the centimetre. Empty planting spots flagged automatically.</p>
+          <span class="cap-stat"><b class="num">99.5%</b> agreement with the installation record</span></div>
+        <div class="cap-card"><span class="cap-n num">02</span><h3>What is it?</h3>
+          <p>Planted stock told apart from weeds and volunteer growth, plant by plant.</p>
+          <span class="cap-stat"><b class="num">8,000+</b> plants classified in one survey</span></div>
+        <div class="cap-card"><span class="cap-n num">03</span><h3>How is it doing?</h3>
+          <p>A condition grade and the green canopy of every sapling, so field visits go where they matter.</p>
+          <span class="cap-stat"><b class="num">5</b> condition grades, from very good to very poor</span></div>
       </div>
-      <div class="model-block">
-        <div class="mb-head"><span class="num">2</span><div><h3>Identification: planted stock or weed?</h3>
-          <p>A satellite-pretrained vision model describes each plant; a small classifier separates the planted stock from other vegetation. It does not name species: the species comes from the planting record.</p></div></div>
-        ${identificationFlow()}
-      </div>
-      <div class="model-block">
-        <div class="mb-head"><span class="num">3</span><div><h3>Health: how is it doing?</h3>
-          <p>An unsupervised model groups the saplings by appearance and greenness; no field labels are needed. With 100–300 field-scored plants, the same features train a supervised health model.</p></div></div>
-        ${healthFlow()}
-      </div>
-      ${flowLegend}
     </div>
   </section>
 
@@ -118,10 +112,10 @@ export function renderLanding(el) {
         <p>Pick the project on the map; its results open in one place.</p></div>
       <div class="shots">
         ${[
-          ["screen_overview", "Plant count at a glance", "Planting spots, plants found, green canopy, identification and health on one page."],
-          ["screen_map", "Every plant on the map", "Colour by detection, canopy, identity or health; draw an area to get its numbers."],
+          ["screen_overview", "Your field, as a story", "Every planting spot, what was found, what is green and where to go first."],
+          ["screen_map", "Every plant on the map", "Click a condition to light up every matching plant; draw an area to get its numbers."],
           ["screen_plants", "Plant-by-plant inventory", "Filter, sort and export; every plant has its own page with its crops and measurements."],
-          ["screen_insights", "Where to act", "Drip lines and plants that need a field visit first."],
+          ["screen_insights", "Where to act", "Every chart connected: pick a group, see where it sits, line by line."],
         ].map(([f, t, d]) => `<figure class="shot"><div class="shot-img"><img src="${img(f)}" alt="${esc(t)} screen" loading="lazy" /></div>
           <figcaption><b>${esc(t)}</b><span>${esc(d)}</span></figcaption></figure>`).join("")}
       </div>
